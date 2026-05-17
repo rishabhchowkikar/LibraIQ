@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"  // ✅ Correct
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ===== ENUMS =====
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum TrustTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+enum ReservationStatus {
+  PENDING
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum NotificationType {
+  DUE_REMINDER
+  OVERDUE_ALERT
+  FINE_ALERT
+  RESERVATION_AVAILABLE
+  RESERVATION_EXPIRING
+  TIER_CHANGE
+  BOOK_REQUEST_UPDATE
+  GENERAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  BOTH
+}
+
+// ===== MODELS =====
+
+model User {
+  id          String      @id @default(uuid())
+  name        String
+  email       String      @unique
+  password    String
+  role        Role        @default(STUDENT)
+  isActive    Boolean     @default(true)
+  trustTier   TrustTier   @default(BRONZE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  loans         Loan[]
+  fines         Fine[]
+  reservations  Reservation[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+model Book {
+  id              String   @id @default(uuid())
+  title           String
+  author          String
+  isbn            String?  @unique
+  genre           String
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  coverUrl        String?
+  description     String?
+  language        String   @default("English")
+  publisher       String?
+  year            Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  loans         Loan[]
+  reservations  Reservation[]
+  
+  @@map("books")
+}
+
+model Loan {
+  id            String      @id @default(uuid())
+  studentId     String
+  bookId        String
+  issuedAt      DateTime    @default(now())
+  dueDate       DateTime
+  returnedAt    DateTime?
+  status        LoanStatus  @default(ACTIVE)
+  extendedCount Int         @default(0)
+  
+  student       User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book          Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  fines         Fine[]
+  
+  @@index([studentId])
+  @@index([bookId])
+  @@index([status])
+  @@map("loans")
+}
+
+model Fine {
+  id         String    @id @default(uuid())
+  loanId     String
+  studentId  String
+  amount     Float     @default(0)
+  reason     String
+  paidAt     DateTime?
+  waivedBy   String?
+  createdAt  DateTime  @default(now())
+  
+  loan       Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  student    User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@index([studentId])
+  @@index([loanId])
+  @@map("fines")
+}
+
+model Reservation {
+  id         String             @id @default(uuid())
+  studentId  String
+  bookId     String
+  reservedAt DateTime           @default(now())
+  expiresAt  DateTime
+  status     ReservationStatus  @default(PENDING)
+  
+  student    User               @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book       Book               @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  
+  @@index([studentId])
+  @@index([bookId])
+  @@index([status])
+  @@map("reservations")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String
+  type      NotificationType
+  message   String
+  channel   NotificationChannel @default(BOTH)
+  isRead    Boolean             @default(false)
+  sentAt    DateTime            @default(now())
+  
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}

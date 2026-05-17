@@ -1,0 +1,222 @@
+const prisma = require("../config/database");
+
+// get all books
+exports.getAllBooks = async (req, res, next) => {
+  try {
+    const { search, genre, available } = req.query;
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { author: { contains: search, mode: "insensitive" } },
+        { isbn: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (genre) {
+      where.genre = genre;
+    }
+
+    if (available === "true") {
+      where.availableCopies = { gt: 0 };
+    }
+
+    const books = await prisma.book.findMany({
+      where,
+      orderBy: { title: "asc" },
+    });
+
+    res.status(200).json({
+      success: true,
+      count: books.length,
+      books,
+    });
+  } catch (error) {
+    console.error("Get books error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch books",
+      details: error,
+    });
+  }
+};
+
+//get single book
+exports.getBook = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const book = await prisma.book.findUnique({
+      where: { id },
+      include: {
+        loans: {
+          where: { status: "ACTIVE" },
+          include: {
+            student: {
+              select: {
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        error: "Book Not Found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      book,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch book",
+      details: error,
+    });
+  }
+};
+
+// Create book (Admin only)
+exports.createBook = async (req, res, next) => {
+  try {
+    const {
+      title,
+      author,
+      isbn,
+      genre,
+      totalCopies,
+      coverUrl,
+      description,
+      language,
+      publisher,
+      year,
+    } = req.body;
+
+    if (!title || !author || !genre) {
+      return res.status().json({
+        success: false,
+        error: "Title, Genre, and Author are requried",
+      });
+    }
+
+    const book = await prisma.book.create({
+      data: {
+        title,
+        author,
+        isbn,
+        genre,
+        totalCopies: totalCopies || 1,
+        availableCopies: totalCopies || 1,
+        coverUrl,
+        description,
+        language: language || "English",
+        publisher,
+        year,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Book Saved Successfully",
+      book,
+    });
+  } catch (error) {
+    console.error("Create book error:", error);
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        success: false,
+        error: "Book with this ISBN already exists",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to create book",
+    });
+  }
+};
+
+// Update book (Admin only)
+
+exports.updateBook = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updatedData = req.body;
+
+    // Don't allow direct update of availableCopies
+    delete updatedData.availableCopies;
+
+    const book = await prisma.book.update({
+      where: { id },
+      data: { ...updatedData },
+    });
+
+    res.json({
+      success: true,
+      message: "Book updated successfully",
+      book,
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: "Book not found",
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: "Failed to update book",
+    });
+  }
+};
+
+// Delete book (Admin only)
+exports.deleteBook = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Check for active loans
+    const activeLoan = await prisma.loan.count({
+      where: {
+        bookId: { id },
+        status: "ACTIVE",
+      },
+    });
+
+    if (activeLoan > 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot delete book with active loans",
+      });
+    }
+
+    await prisma.book.delete({
+      where: { id },
+    });
+
+    res.json({
+      success: true,
+      message: "Book deleted successfully",
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        error: "Book not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to delete book",
+    });
+  }
+};
