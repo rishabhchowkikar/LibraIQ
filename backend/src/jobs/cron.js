@@ -1,0 +1,81 @@
+const cron = require("node-cron");
+const {
+  runFineAccrual,
+  sendDueReminders,
+} = require("../services/fine.service");
+const { sendAdminOverdueReport } = require("../services/email.service");
+const prisma = require("../config/database");
+
+const initCronjobs = () => {
+  console.log("⏰ Initializing cron jobs...");
+
+  // ─── Fine Accrual — Every day at midnight ─────────────────
+  cron.schedule("0 0 * * *", async () => {
+    console.log("\n🕛 [CRON] Midnight — Running fine accrual...");
+    try {
+      const result = await runFineAccrual();
+      console.log("✅ [CRON] Fine accrual complete:", result);
+    } catch (error) {
+      console.error("❌ [CRON] Fine accrual failed:", error.message);
+    }
+  });
+
+  // ─── Due Date Reminders — Every day at 9 AM ───────────────
+  cron.schedule("0 9 * * *", async () => {
+    console.log("\n🕘 [CRON] 9AM — Sending due reminders...");
+    try {
+      const result = await sendDueReminders();
+      console.log("✅ [CRON] Due reminders sent:", result);
+    } catch (error) {
+      console.error("❌ [CRON] Due reminders failed:", error.message);
+    }
+  });
+
+  // ─── Admin Overdue Report — Every day at 9 AM ─────────────
+  cron.schedule("0 9 * * *", async () => {
+    console.log("\n📊 [CRON] Generating admin overdue report...");
+    try {
+      // Get all admins
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true },
+        select: { email: true },
+      });
+
+      // Get overdue loans with fines
+      const overdueLoans = await prisma.loan.findMany({
+        where: { status: "OVERDUE" },
+        include: {
+          student: { select: { name: true, email: true } },
+          book: { select: { title: true, author: true } },
+          fines: { where: { paidAt: null } },
+        },
+      });
+
+      const totalFines = overdueLoans.reduce(
+        (sum, loan) => sum + loan.fines.reduce((s, f) => s + f.amount, 0),
+        0,
+      );
+
+      // Send to each admin
+      for (const admin of admins) {
+        await sendAdminOverdueReport({
+          adminEmail: admin.email,
+          overdueLoans,
+          totalFines,
+        }).catch((err) =>
+          console.warn(`Admin report email failed: ${err.message}`),
+        );
+      }
+
+      console.log(`✅ [CRON] Admin report sent to ${admins.length} admin(s)`);
+    } catch (error) {
+      console.error("❌ [CRON] Admin report failed:", error.message);
+    }
+  });
+  console.log("✅ Cron jobs initialized:");
+  console.log("   • Fine accrual    → daily at midnight");
+  console.log("   • Due reminders   → daily at 9 AM");
+  console.log("   • Admin report    → daily at 9 AM");
+};
+
+module.exports = { initCronjobs };

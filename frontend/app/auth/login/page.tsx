@@ -127,7 +127,7 @@ export default function LoginPage() {
                             </div>
                             <div className="flex items-center justify-between bg-background rounded-md px-3 py-2 text-sm">
                                 <span className="text-muted-foreground font-medium">Student:</span>
-                                <code className="text-xs">arjun@student.com / student123</code>
+                                <code className="text-xs">arjun@student.com / password123</code>
                             </div>
                         </div>
                     </div>

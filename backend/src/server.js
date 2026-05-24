@@ -8,6 +8,11 @@ const prisma = require("./config/database");
 const authRoutes = require("./routes/auth.routes");
 const bookRoutes = require("./routes/book.routes");
 const loanRoutes = require("./routes/loan.routes");
+const fineRoutes = require("./routes/fine.routes");
+const notificationRoutes = require("./routes/notification.routes");
+
+const { initCronjobs } = require("./jobs/cron");
+const { verifyEmailConnection } = require("./services/email.service");
 
 const app = express();
 
@@ -27,6 +32,8 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/loans", loanRoutes);
+app.use("/api/fines", fineRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // health
 app.get("/health", async (req, res) => {
@@ -77,8 +84,14 @@ app.use((error, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 API: http://localhost:${PORT}`);
+
+  // initial email service
+  await verifyEmailConnection();
+
+  // initialize corn jobs
+  initCronjobs();
 });
