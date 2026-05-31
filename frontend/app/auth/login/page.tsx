@@ -29,6 +29,10 @@ export default function LoginPage() {
             const { data } = await api.post('/auth/login', { email, password });
             if (data.success) {
                 setAuth(data.user, data.accessToken);
+                const maxAge = 7 * 24 * 60 * 60;
+                const isSecure = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = `isLoggedIn=true; path=/; max-age=${maxAge}; SameSite=Lax${isSecure}`;
+                document.cookie = `userRole=${data.user.role}; path=/; max-age=${maxAge}; SameSite=Lax${isSecure}`;
                 router.push(data.user.role === 'ADMIN' ? '/admin/dashboard' : '/student/dashboard');
             }
         } catch (err: any) {

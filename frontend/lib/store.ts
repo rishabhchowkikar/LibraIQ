@@ -27,6 +27,20 @@ interface AuthState {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+function clearFrontendCookies() {
+    if (typeof document === 'undefined') return;
+    document.cookie = 'isLoggedIn=; path=/; max-age=0';
+    document.cookie = 'userRole=; path=/; max-age=0';
+}
+
+function setFrontendCookies(role: string) {
+    if (typeof document === 'undefined') return;
+    const maxAge = 7 * 24 * 60 * 60;
+    const isSecure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `isLoggedIn=true; path=/; max-age=${maxAge}; SameSite=Lax${isSecure}`;
+    document.cookie = `userRole=${role}; path=/; max-age=${maxAge}; SameSite=Lax${isSecure}`;
+}
+
 export const useAuthStore = create<AuthState>()(
     persist(
         (set, get) => ({
@@ -38,10 +52,12 @@ export const useAuthStore = create<AuthState>()(
             setHasHydrated: (state) => set({ _hasHydrated: state }),
             setAuth: (user, token) => {
                 localStorage.setItem('accessToken', token);
+                setFrontendCookies(user.role);
                 set({ user, accessToken: token, isAuthenticated: true });
             },
             logout: () => {
                 localStorage.removeItem('accessToken');
+                clearFrontendCookies();
                 set({ user: null, accessToken: null, isAuthenticated: false });
             },
             restoreSession: async () => {
@@ -55,9 +71,8 @@ export const useAuthStore = create<AuthState>()(
 
                     if (!refreshData.success || !refreshData.accessToken) throw new Error('refresh failed');
 
-                    const { data: meData } = await axios.post(
+                    const { data: meData } = await axios.get(
                         `${BASE_URL}/auth/me`,
-                        {},
                         { headers: { Authorization: `Bearer ${refreshData.accessToken}` }, withCredentials: true }
                     );
 
@@ -67,10 +82,10 @@ export const useAuthStore = create<AuthState>()(
                     set({ _isRestoring: false });
                     return true;
                 } catch {
-                    // Refresh token is invalid — clear cookies so middleware stops redirecting
                     try {
                         await axios.post(`${BASE_URL}/auth/logout`, {}, { withCredentials: true });
                     } catch { /* ignore */ }
+                    clearFrontendCookies();
                     set({ _isRestoring: false });
                     return false;
                 }

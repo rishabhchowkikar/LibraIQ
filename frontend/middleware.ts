@@ -3,12 +3,12 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    const hasRefreshToken = request.cookies.has('refreshToken');
+    const isLoggedIn = request.cookies.get('isLoggedIn')?.value === 'true';
     const userRole = request.cookies.get('userRole')?.value;
 
     // Root route - redirect based on login status
     if (pathname === '/') {
-        if (hasRefreshToken && userRole) {
+        if (isLoggedIn && userRole) {
             if (userRole === 'ADMIN') {
                 return NextResponse.redirect(new URL('/admin/dashboard', request.url));
             } else {
@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
 
     // Protect student routes
     if (pathname.startsWith('/student')) {
-        if (!hasRefreshToken) {
+        if (!isLoggedIn) {
             return NextResponse.redirect(new URL('/auth/login', request.url));
         }
         // If logged in but wrong role
@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
 
     // Protect admin routes
     if (pathname.startsWith('/admin')) {
-        if (!hasRefreshToken) {
+        if (!isLoggedIn) {
             return NextResponse.redirect(new URL('/auth/login', request.url));
         }
         // If logged in but wrong role
@@ -45,7 +45,7 @@ export function middleware(request: NextRequest) {
 
     // Redirect logged-in users away from auth pages
     if (pathname.startsWith('/auth')) {
-        if (hasRefreshToken && userRole) {
+        if (isLoggedIn && userRole) {
             if (userRole === 'ADMIN') {
                 return NextResponse.redirect(new URL('/admin/dashboard', request.url));
             } else {

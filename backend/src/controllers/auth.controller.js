@@ -6,6 +6,8 @@ const {
   verifyRefreshToken,
 } = require("../utils/jwt");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 // Register new user
 
 exports.register = async (req, res, next) => {
@@ -115,20 +117,11 @@ exports.login = async (req, res, next) => {
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id, user.role);
 
-    // set response as the http - only cookei
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    // ✅ NEW: Set role cookie for middleware
-    res.cookie("userRole", user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
@@ -181,8 +174,11 @@ exports.refresh = (req, res, next) => {
 
 // Logout
 exports.logout = (req, res, next) => {
-  res.clearCookie("refreshToken");
-  res.clearCookie("userRole");
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  });
 
   res.json({
     success: true,
