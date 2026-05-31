@@ -9,6 +9,7 @@ const authRoutes = require("./routes/auth.routes");
 const bookRoutes = require("./routes/book.routes");
 const loanRoutes = require("./routes/loan.routes");
 const fineRoutes = require("./routes/fine.routes");
+const paymentRoutes = require("./routes/payment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 
 const { initCronjobs } = require("./jobs/cron");
@@ -24,6 +25,17 @@ app.use(
   }),
 );
 
+// ── IMPORTANT: Webhook raw body BEFORE express.json() ───────
+app.use(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  (req, res, next) => {
+    // Attach raw body for signature verification
+    req.rawBody = req.body;
+    next();
+  },
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -34,6 +46,7 @@ app.use("/api/books", bookRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/fines", fineRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // health
 app.get("/health", async (req, res) => {

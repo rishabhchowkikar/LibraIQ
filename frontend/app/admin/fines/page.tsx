@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import {
     Receipt, Search, CheckCircle2, ShieldCheck,
     AlertCircle, BookOpen, IndianRupee, TrendingDown,
+    LinkIcon,
 } from 'lucide-react';
 
 interface Fine {
@@ -81,6 +82,13 @@ export default function AdminFinesPage() {
     const [waiveLoading, setWaiveLoading] = useState(false);
     const [waiveError, setWaiveError] = useState('');
 
+    // payment related state
+    const [linkOpen, setLinkOpen] = useState(false);
+    const [linkFine, setLinkFine] = useState<Fine | null>(null);
+    const [linkLoading, setLinkLoading] = useState(false);
+    const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+
+
     useEffect(() => { fetchFines(); }, []);
 
     const fetchFines = async () => {
@@ -129,6 +137,26 @@ export default function AdminFinesPage() {
         setWaiveError('');
         setWaiveOpen(true);
     };
+
+    // payment link generator
+    const handleGenerateLink = async () => {
+        if (!linkFine) return
+        setLinkLoading(true);
+        try {
+            const { data } = await api.post('/payments/create-link', {
+                fineIds: [linkFine.id],
+                studentId: linkFine.student.id,
+            })
+            if (data.success) {
+                setGeneratedLink(data.shortUrl);
+                toast.success('Payment link generated!');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to generate link');
+        } finally {
+            setLinkLoading(false);
+        }
+    }
 
     const handleWaive = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -223,6 +251,11 @@ export default function AdminFinesPage() {
                                             >
                                                 <CheckCircle2 className="w-3 h-3" />
                                                 Paid
+                                            </Button>
+                                            <Button variant="outline" size="sm"
+                                                onClick={() => { setLinkFine(fine); setGeneratedLink(null); setLinkOpen(true); }}
+                                                className="h-7 text-xs gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                                <LinkIcon className="w-3 h-3" />Payment Link
                                             </Button>
                                             <Button
                                                 variant="outline"
@@ -448,6 +481,95 @@ export default function AdminFinesPage() {
                             </Button>
                         </div>
                     </form>
+                </SheetContent>
+            </Sheet>
+            <Sheet open={linkOpen} onOpenChange={(o) => { setLinkOpen(o); if (!o) setGeneratedLink(null); }}>
+                <SheetContent className="sm:max-w-md p-3">
+                    <SheetHeader className="mb-6">
+                        <SheetTitle className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <LinkIcon className="w-4 h-4 text-blue-600" />
+                            </div>
+                            Generate Payment Link
+                        </SheetTitle>
+                        <SheetDescription>
+                            Create a UPI/online payment link for the student
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    {linkFine && (
+                        <div className="space-y-5">
+                            <div className="bg-muted/40 rounded-lg border p-4 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Student</span>
+                                    <span className="font-semibold">{linkFine.student.name}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Book</span>
+                                    <span className="font-medium">{linkFine.loan.book.title}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Amount</span>
+                                    <span className="font-bold text-red-600">₹{linkFine.amount}</span>
+                                </div>
+                            </div>
+
+                            {!generatedLink ? (
+                                <>
+                                    <p className="text-sm text-muted-foreground">
+                                        This will generate a Razorpay payment link valid for 24 hours.
+                                        Share it with the student or show the QR code.
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <Button variant="outline" className="flex-1" onClick={() => setLinkOpen(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                            onClick={handleGenerateLink}
+                                            disabled={linkLoading}
+                                        >
+                                            {linkLoading ? (
+                                                <span className="flex items-center gap-2">
+                                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    Generating...
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-2">
+                                                    <LinkIcon className="w-4 h-4" />Generate Link
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                                        <p className="text-sm font-semibold text-green-800 flex items-center gap-2">
+                                            <CheckCircle2 className="w-4 h-4" />Link Generated Successfully
+                                        </p>
+                                        <p className="text-xs text-green-700 break-all font-mono bg-white rounded p-2 border border-green-200">
+                                            {generatedLink}
+                                        </p>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full gap-2 border-green-300"
+                                            onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success('Link copied!'); }}
+                                        >
+                                            Copy Link
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        Link expires in 24 hours. Payment will auto-confirm via webhook.
+                                    </p>
+                                    <Button className="w-full" onClick={() => { setLinkOpen(false); setGeneratedLink(null); }}>
+                                        Done
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </SheetContent>
             </Sheet>
         </div>

@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"  // ✅ Correct
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -8,7 +8,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ===== ENUMS =====
+// ===================================================
+// ENUMS
+// ===================================================
 
 enum Role {
   STUDENT
@@ -53,24 +55,43 @@ enum NotificationChannel {
   BOTH
 }
 
-// ===== MODELS =====
+// Phase 2.5 — Payment Gateway
+enum PaymentMethod {
+  ONLINE
+  CASH
+  LINK
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// ===================================================
+// MODELS
+// ===================================================
 
 model User {
-  id          String      @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
-  email       String      @unique
+  email       String    @unique
   password    String
-  role        Role        @default(STUDENT)
-  isActive    Boolean     @default(true)
-  trustTier   TrustTier   @default(BRONZE)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
+  role        Role      @default(STUDENT)
+  isActive    Boolean   @default(true)
+  trustTier   TrustTier @default(BRONZE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
   loans         Loan[]
   fines         Fine[]
   reservations  Reservation[]
   notifications Notification[]
-  
+  payments      Payment[]       // Phase 2.5
+
   @@map("users")
 }
 
@@ -87,29 +108,32 @@ model Book {
   language        String   @default("English")
   publisher       String?
   year            Int?
+  price           Float?   // Phase 2.5 — used for lost book replacement cost
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
-  loans         Loan[]
-  reservations  Reservation[]
-  
+
+  // Relations
+  loans        Loan[]
+  reservations Reservation[]
+
   @@map("books")
 }
 
 model Loan {
-  id            String      @id @default(uuid())
+  id            String     @id @default(uuid())
   studentId     String
   bookId        String
-  issuedAt      DateTime    @default(now())
+  issuedAt      DateTime   @default(now())
   dueDate       DateTime
   returnedAt    DateTime?
-  status        LoanStatus  @default(ACTIVE)
-  extendedCount Int         @default(0)
-  
-  student       User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  book          Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  fines         Fine[]
-  
+  status        LoanStatus @default(ACTIVE)
+  extendedCount Int        @default(0)
+
+  // Relations
+  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book    Book  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  fines   Fine[]
+
   @@index([studentId])
   @@index([bookId])
   @@index([status])
@@ -117,34 +141,38 @@ model Loan {
 }
 
 model Fine {
-  id         String    @id @default(uuid())
-  loanId     String
-  studentId  String
-  amount     Float     @default(0)
-  reason     String
-  paidAt     DateTime?
-  waivedBy   String?
-  createdAt  DateTime  @default(now())
-  
-  loan       Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  student    User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+  id            String    @id @default(uuid())
+  loanId        String
+  studentId     String
+  amount        Float     @default(0)
+  reason        String
+  paidAt        DateTime?
+  waivedBy      String?   // Admin user ID who waived it
+  paymentId     String?   // Phase 2.5 — which Payment record cleared this fine
+  paymentMethod String?   // Phase 2.5 — ONLINE | CASH | LINK | WAIVED
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  loan    Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
   @@index([studentId])
   @@index([loanId])
   @@map("fines")
 }
 
 model Reservation {
-  id         String             @id @default(uuid())
+  id         String            @id @default(uuid())
   studentId  String
   bookId     String
-  reservedAt DateTime           @default(now())
+  reservedAt DateTime          @default(now())
   expiresAt  DateTime
-  status     ReservationStatus  @default(PENDING)
-  
-  student    User               @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  book       Book               @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  
+  status     ReservationStatus @default(PENDING)
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book    Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
   @@index([studentId])
   @@index([bookId])
   @@index([status])
@@ -152,17 +180,44 @@ model Reservation {
 }
 
 model Notification {
-  id        String              @id @default(uuid())
-  userId    String
-  type      NotificationType
-  message   String
-  channel   NotificationChannel @default(BOTH)
-  isRead    Boolean             @default(false)
-  sentAt    DateTime            @default(now())
-  
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id      String              @id @default(uuid())
+  userId  String
+  type    NotificationType
+  message String
+  channel NotificationChannel @default(BOTH)
+  isRead  Boolean             @default(false)
+  sentAt  DateTime            @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+// Phase 2.5 — Payment Gateway
+model Payment {
+  id            String        @id @default(uuid())
+  receipt       String        @unique   // e.g. LIQ-17834621-4821
+  orderId       String?       @unique   // Razorpay order ID (online payments)
+  paymentId     String?                 // Razorpay payment ID (set after success)
+  linkId        String?                 // Razorpay payment link ID (admin-generated)
+  studentId     String
+  amount        Float                   // Total ₹ being paid
+  method        PaymentMethod @default(ONLINE)
+  status        PaymentStatus @default(CREATED)
+  fineIds       Json                    // String[] — array of fine IDs being paid
+  failureReason String?                 // Set when status = FAILED
+  createdBy     String?                 // Admin ID for CASH and LINK payments
+  paidAt        DateTime?               // Set when status = SUCCESS
+  createdAt     DateTime      @default(now())
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([status])
+  @@index([orderId])
+  @@map("payments")
 }

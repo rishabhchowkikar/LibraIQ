@@ -15,15 +15,22 @@ exports.getNotifications = async (req, res) => {
       take: parseInt(limit),
     });
 
+    const unreadCount = await prisma.notification.count({
+      where: { userId, isRead: false },
+    });
+
     res.json({
       success: true,
       notifications,
       unreadCount,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to fetch notifications" });
+    console.error("❌ Notification error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch notifications",
+      details: error.message,
+    });
   }
 };
 

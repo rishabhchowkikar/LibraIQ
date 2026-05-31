@@ -392,4 +392,5 @@ module.exports = {
   sendFineWaivedEmail,
   sendFinePaidEmail,
   sendAdminOverdueReport,
+  sendEmail,
 };

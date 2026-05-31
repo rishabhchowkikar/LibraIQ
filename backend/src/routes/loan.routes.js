@@ -25,6 +25,14 @@ loanRouter.post(
   requireRole("ADMIN"),
   loanController.returnBook,
 );
+
+loanRouter.post(
+  "/mark-lost",
+  authenticate,
+  requireRole("ADMIN"),
+  loanController.markAsLost,
+);
+
 loanRouter.get(
   "/",
   authenticate,

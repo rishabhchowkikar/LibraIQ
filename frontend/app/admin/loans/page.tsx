@@ -12,40 +12,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
+    Sheet, SheetContent, SheetHeader,
+    SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell,
+    TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
+    Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
-    FileText,
-    Plus,
-    Search,
-    BookOpen,
-    AlertCircle,
-    RotateCcw,
-    Clock,
-    CheckCircle2,
-    TrendingUp,
+    FileText, Plus, Search, BookOpen, AlertCircle,
+    RotateCcw, Clock, CheckCircle2, TrendingUp, XCircle,
 } from 'lucide-react';
 
-// ─── Skeleton ────────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────
 function PageSkeleton() {
     return (
         <div className="space-y-6 max-w-7xl">
@@ -59,7 +42,6 @@ function PageSkeleton() {
                 </div>
                 <Skeleton className="h-9 w-28 rounded-lg" />
             </div>
-
             <div className="grid grid-cols-3 gap-4">
                 {Array.from({ length: 3 }).map((_, i) => (
                     <Card key={i}>
@@ -70,11 +52,8 @@ function PageSkeleton() {
                     </Card>
                 ))}
             </div>
-
             <Card>
-                <CardHeader>
-                    <Skeleton className="h-9 w-72 rounded-lg" />
-                </CardHeader>
+                <CardHeader><Skeleton className="h-9 w-72 rounded-lg" /></CardHeader>
                 <div className="px-6 pb-6 space-y-3">
                     {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-4 py-3 border-b last:border-0">
@@ -95,27 +74,31 @@ function PageSkeleton() {
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────
+// ─── Main Page ─────────────────────────────────────────────────
 export default function AdminLoansPage() {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [books, setBooks] = useState<Book[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
-    // Issue sheet state
+    // Issue sheet
     const [issueOpen, setIssueOpen] = useState(false);
     const [issueData, setIssueData] = useState({ studentId: '', bookId: '' });
     const [issueError, setIssueError] = useState('');
     const [issueLoading, setIssueLoading] = useState(false);
 
-    // Return sheet state
+    // Return sheet
     const [returnOpen, setReturnOpen] = useState(false);
     const [returningLoan, setReturningLoan] = useState<Loan | null>(null);
     const [returnLoading, setReturnLoading] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // Lost sheet
+    const [lostOpen, setLostOpen] = useState(false);
+    const [losingLoan, setLosingLoan] = useState<Loan | null>(null);
+    const [replacementCost, setReplacementCost] = useState('500');
+    const [lostLoading, setLostLoading] = useState(false);
+
+    useEffect(() => { fetchData(); }, []);
 
     const fetchData = async () => {
         try {
@@ -125,18 +108,18 @@ export default function AdminLoansPage() {
             ]);
             if (loansRes.data.success) setLoans(loansRes.data.loans);
             if (booksRes.data.success) setBooks(booksRes.data.books);
-        } catch (err) {
-            console.error(err);
+        } catch {
             toast.error('Failed to load data');
         } finally {
             setLoading(false);
         }
     };
 
-    // ─── Derived Data ─────────────────────────────────────────
+    // ─── Derived ────────────────────────────────────────────────
     const activeLoans = loans.filter(l => l.status === 'ACTIVE');
     const overdueLoans = loans.filter(l => l.status === 'OVERDUE');
     const returnedLoans = loans.filter(l => l.status === 'RETURNED');
+    const lostLoans = loans.filter(l => l.status === 'LOST');
 
     const filterLoans = (status?: string) =>
         loans.filter(loan => {
@@ -165,29 +148,19 @@ export default function AdminLoansPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'ACTIVE':
-                return (
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 gap-1">
-                        <Clock className="w-3 h-3" /> Active
-                    </Badge>
-                );
+                return <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 gap-1"><Clock className="w-3 h-3" />Active</Badge>;
             case 'RETURNED':
-                return (
-                    <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Returned
-                    </Badge>
-                );
+                return <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 gap-1"><CheckCircle2 className="w-3 h-3" />Returned</Badge>;
             case 'OVERDUE':
-                return (
-                    <Badge variant="destructive" className="gap-1">
-                        <AlertCircle className="w-3 h-3" /> Overdue
-                    </Badge>
-                );
+                return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" />Overdue</Badge>;
+            case 'LOST':
+                return <Badge className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-100 gap-1"><XCircle className="w-3 h-3" />Lost</Badge>;
             default:
                 return <Badge variant="secondary">{status}</Badge>;
         }
     };
 
-    // ─── Handlers ────────────────────────────────────────────
+    // ─── Handlers ───────────────────────────────────────────────
     const handleIssue = async (e: React.FormEvent) => {
         e.preventDefault();
         setIssueError('');
@@ -227,28 +200,38 @@ export default function AdminLoansPage() {
         }
     };
 
-    const openReturn = (loan: Loan) => {
-        setReturningLoan(loan);
-        setReturnOpen(true);
+    const handleMarkLost = async () => {
+        if (!losingLoan) return;
+        setLostLoading(true);
+        try {
+            const { data } = await api.post('/loans/mark-lost', {
+                loanId: losingLoan.id,
+                replacementCost: parseFloat(replacementCost),
+            });
+            if (data.success) {
+                await fetchData();
+                setLostOpen(false);
+                setLosingLoan(null);
+                toast.success(data.message || 'Loan marked as lost');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to mark as lost');
+        } finally {
+            setLostLoading(false);
+        }
     };
 
-    // ─── Loan Table Component ─────────────────────────────────
+    // ─── Loan Table ──────────────────────────────────────────────
     const LoanTable = ({ list }: { list: Loan[] }) => {
-        if (list.length === 0) {
-            return (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mb-4">
-                        <FileText className="w-7 h-7 text-muted-foreground" />
-                    </div>
-                    <p className="font-medium text-muted-foreground">No loans found</p>
-                    {search && (
-                        <p className="text-sm text-muted-foreground/70 mt-1">
-                            Try a different search term
-                        </p>
-                    )}
+        if (list.length === 0) return (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <FileText className="w-7 h-7 text-muted-foreground" />
                 </div>
-            );
-        }
+                <p className="font-medium text-muted-foreground">No loans found</p>
+                {search && <p className="text-sm text-muted-foreground/70 mt-1">Try a different search term</p>}
+            </div>
+        );
 
         return (
             <Table>
@@ -270,45 +253,33 @@ export default function AdminLoansPage() {
 
                         return (
                             <TableRow key={loan.id} className="group">
-                                {/* Book */}
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-11 bg-primary/10 rounded-md flex items-center justify-center shrink-0 border border-primary/10">
+                                        <div className="w-9 h-11 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0 border border-primary/10">
                                             <BookOpen className="w-4 h-4 text-primary" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="font-semibold text-sm truncate max-w-[160px]">
-                                                {loan.book?.title}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground truncate">
-                                                {loan.book?.author}
-                                            </p>
+                                            <p className="font-semibold text-sm truncate max-w-[160px]">{loan.book?.title}</p>
+                                            <p className="text-xs text-muted-foreground">{loan.book?.author}</p>
                                         </div>
                                     </div>
                                 </TableCell>
 
-                                {/* Student */}
                                 <TableCell>
                                     <p className="text-sm font-medium">{loan.student?.name}</p>
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground capitalize">
                                         {loan.student?.trustTier?.toLowerCase()} tier
                                     </p>
                                 </TableCell>
 
-                                {/* Issued date */}
                                 <TableCell className="text-sm text-muted-foreground">
                                     {new Date(loan.issuedAt).toLocaleDateString()}
                                 </TableCell>
 
-                                {/* Due date */}
                                 <TableCell>
-                                    <p className="text-sm">
-                                        {new Date(loan.dueDate).toLocaleDateString()}
-                                    </p>
+                                    <p className="text-sm">{new Date(loan.dueDate).toLocaleDateString()}</p>
                                     {daysInfo && (
-                                        <p className={`text-xs mt-0.5 ${daysInfo.cls}`}>
-                                            {daysInfo.label}
-                                        </p>
+                                        <p className={`text-xs mt-0.5 ${daysInfo.cls}`}>{daysInfo.label}</p>
                                     )}
                                     {loan.returnedAt && (
                                         <p className="text-xs text-green-600 mt-0.5">
@@ -317,21 +288,47 @@ export default function AdminLoansPage() {
                                     )}
                                 </TableCell>
 
-                                {/* Status */}
                                 <TableCell>{getStatusBadge(loan.status)}</TableCell>
 
-                                {/* Action */}
                                 <TableCell className="text-right">
+                                    {/* ACTIVE — Return + Lost buttons */}
                                     {loan.status === 'ACTIVE' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => openReturn(loan)}
-                                            className="h-8 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <RotateCcw className="w-3.5 h-3.5" />
-                                            Return
-                                        </Button>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => { setReturningLoan(loan); setReturnOpen(true); }} // ← Fixed
+                                                className="h-8 gap-1.5 cursor-pointer"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                Return
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => { setLosingLoan(loan); setReplacementCost('500'); setLostOpen(true); }}
+                                                className="h-8 gap-1.5 hover:bg-red-50 hover:text-red-700 hover:border-red-300 cursor-pointer"
+                                            >
+                                                <XCircle className="w-3.5 h-3.5" />
+                                                Lost
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {/* RETURNED */}
+                                    {loan.status === 'RETURNED' && (
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
+                                            <CheckCircle2 className="w-3 h-3 text-green-600" />
+                                            {loan.returnedAt && new Date(loan.returnedAt).toLocaleDateString()}
+                                        </span>
+                                    )}
+
+                                    {/* LOST */}
+                                    {loan.status === 'LOST' && (
+                                        <span className="text-xs text-red-500 flex items-center gap-1 justify-end font-medium">
+                                            <XCircle className="w-3 h-3" />
+                                            Marked lost
+                                        </span>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -344,7 +341,7 @@ export default function AdminLoansPage() {
 
     if (loading) return <PageSkeleton />;
 
-    // ─── Render ───────────────────────────────────────────────
+    // ─── Render ──────────────────────────────────────────────────
     return (
         <div className="space-y-6 max-w-7xl">
             {/* Header */}
@@ -359,11 +356,7 @@ export default function AdminLoansPage() {
                     </div>
                 </div>
                 <Button
-                    onClick={() => {
-                        setIssueError('');
-                        setIssueData({ studentId: '', bookId: '' });
-                        setIssueOpen(true);
-                    }}
+                    onClick={() => { setIssueError(''); setIssueData({ studentId: '', bookId: '' }); setIssueOpen(true); }}
                     className="gap-2"
                 >
                     <Plus className="w-4 h-4" />
@@ -372,19 +365,18 @@ export default function AdminLoansPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="flex items-center gap-4 justify-center">
                 {[
                     { label: 'Total Loans', value: loans.length, color: 'text-purple-600', icon: TrendingUp },
-                    { label: 'Active Loans', value: activeLoans.length, color: 'text-blue-600', icon: Clock },
+                    { label: 'Active', value: activeLoans.length, color: 'text-blue-600', icon: Clock },
                     { label: 'Overdue', value: overdueLoans.length, color: 'text-red-600', icon: AlertCircle },
+                    { label: 'Lost', value: lostLoans.length, color: 'text-gray-600', icon: XCircle },
                 ].map(stat => (
-                    <Card key={stat.label} className="shadow-sm">
-                        <CardContent className="p-6">
+                    <Card key={stat.label} className="w-full">
+                        <CardContent className="p-2">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                        {stat.label}
-                                    </p>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</p>
                                     <p className={`text-3xl font-bold mt-1 ${stat.color}`}>{stat.value}</p>
                                 </div>
                                 <stat.icon className={`w-5 h-5 mt-1 ${stat.color} opacity-60`} />
@@ -394,7 +386,7 @@ export default function AdminLoansPage() {
                 ))}
             </div>
 
-            {/* Table Card */}
+            {/* Table */}
             <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="relative max-w-sm">
@@ -414,46 +406,34 @@ export default function AdminLoansPage() {
                     <div className="px-6 pt-4">
                         <TabsList>
                             <TabsTrigger value="all" className="gap-1.5 text-xs">
-                                All
-                                <Badge variant="secondary" className="text-xs px-1.5">
-                                    {loans.length}
-                                </Badge>
+                                All <Badge variant="secondary" className="text-xs px-1.5">{loans.length}</Badge>
                             </TabsTrigger>
                             <TabsTrigger value="active" className="gap-1.5 text-xs">
-                                Active
-                                <Badge variant="secondary" className="text-xs px-1.5">
-                                    {activeLoans.length}
-                                </Badge>
+                                Active <Badge variant="secondary" className="text-xs px-1.5">{activeLoans.length}</Badge>
                             </TabsTrigger>
                             <TabsTrigger value="overdue" className="gap-1.5 text-xs">
                                 Overdue
-                                <Badge
-                                    className={`text-xs px-1.5 ${overdueLoans.length > 0 ? 'bg-red-100 text-red-700' : ''}`}
-                                >
+                                <Badge className={`text-xs px-1.5 ${overdueLoans.length > 0 ? 'bg-red-100 text-red-700 border-0' : ''}`}>
                                     {overdueLoans.length}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger value="returned" className="gap-1.5 text-xs">
-                                Returned
-                                <Badge variant="secondary" className="text-xs px-1.5">
-                                    {returnedLoans.length}
+                                Returned <Badge variant="secondary" className="text-xs px-1.5">{returnedLoans.length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="lost" className="gap-1.5 text-xs">
+                                Lost
+                                <Badge className={`text-xs px-1.5 ${lostLoans.length > 0 ? 'bg-gray-100 text-gray-700 border-0' : ''}`}>
+                                    {lostLoans.length}
                                 </Badge>
                             </TabsTrigger>
                         </TabsList>
                     </div>
 
-                    <TabsContent value="all" className="mt-0">
-                        <LoanTable list={filterLoans()} />
-                    </TabsContent>
-                    <TabsContent value="active" className="mt-0">
-                        <LoanTable list={filterLoans('ACTIVE')} />
-                    </TabsContent>
-                    <TabsContent value="overdue" className="mt-0">
-                        <LoanTable list={filterLoans('OVERDUE')} />
-                    </TabsContent>
-                    <TabsContent value="returned" className="mt-0">
-                        <LoanTable list={filterLoans('RETURNED')} />
-                    </TabsContent>
+                    <TabsContent value="all" className="mt-0"><LoanTable list={filterLoans()} /></TabsContent>
+                    <TabsContent value="active" className="mt-0"><LoanTable list={filterLoans('ACTIVE')} /></TabsContent>
+                    <TabsContent value="overdue" className="mt-0"><LoanTable list={filterLoans('OVERDUE')} /></TabsContent>
+                    <TabsContent value="returned" className="mt-0"><LoanTable list={filterLoans('RETURNED')} /></TabsContent>
+                    <TabsContent value="lost" className="mt-0"><LoanTable list={filterLoans('LOST')} /></TabsContent>
                 </Tabs>
 
                 {loans.length > 0 && (
@@ -465,19 +445,17 @@ export default function AdminLoansPage() {
                 )}
             </Card>
 
-            {/* ── Issue Book Sheet ─────────────────────────────── */}
+            {/* ── Issue Book Sheet ───────────────────────────────── */}
             <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
-                <SheetContent className="sm:max-w-md p-6">
-                    <SheetHeader className="mb-6 p-0">
+                <SheetContent className="sm:max-w-md">
+                    <SheetHeader className="mb-6">
                         <SheetTitle className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                                 <Plus className="w-4 h-4 text-primary" />
                             </div>
                             Issue a Book
                         </SheetTitle>
-                        <SheetDescription>
-                            Assign an available book to a student
-                        </SheetDescription>
+                        <SheetDescription>Assign an available book to a student</SheetDescription>
                     </SheetHeader>
 
                     {issueError && (
@@ -495,13 +473,9 @@ export default function AdminLoansPage() {
                                 required
                                 placeholder="Paste student UUID..."
                                 value={issueData.studentId}
-                                onChange={(e) =>
-                                    setIssueData({ ...issueData, studentId: e.target.value })
-                                }
+                                onChange={(e) => setIssueData({ ...issueData, studentId: e.target.value })}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Find student IDs from your database
-                            </p>
+                            <p className="text-xs text-muted-foreground">Find student IDs from your database</p>
                         </div>
 
                         <div className="space-y-2">
@@ -510,97 +484,66 @@ export default function AdminLoansPage() {
                                 id="bookId"
                                 required
                                 value={issueData.bookId}
-                                onChange={(e) =>
-                                    setIssueData({ ...issueData, bookId: e.target.value })
-                                }
+                                onChange={(e) => setIssueData({ ...issueData, bookId: e.target.value })}
                                 className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                                 <option value="">Choose an available book...</option>
-                                {books
-                                    .filter(b => b.availableCopies > 0)
-                                    .map(book => (
-                                        <option key={book.id} value={book.id}>
-                                            {book.title} — {book.author} ({book.availableCopies} left)
-                                        </option>
-                                    ))}
+                                {books.filter(b => b.availableCopies > 0).map(book => (
+                                    <option key={book.id} value={book.id}>
+                                        {book.title} — {book.author} ({book.availableCopies} left)
+                                    </option>
+                                ))}
                             </select>
-                            {books.filter(b => b.availableCopies > 0).length === 0 && (
-                                <p className="text-xs text-red-500">No books currently available</p>
-                            )}
                         </div>
 
                         <Separator />
 
                         <div className="flex gap-3">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="flex-1"
-                                onClick={() => setIssueOpen(false)}
-                            >
+                            <Button type="button" variant="outline" className="flex-1" onClick={() => setIssueOpen(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" className="flex-1" disabled={issueLoading}>
-                                {issueLoading ? (
-                                    <span className="flex items-center gap-2">
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Issuing...
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-2">
-                                        <BookOpen className="w-4 h-4" /> Issue Book
-                                    </span>
-                                )}
+                                {issueLoading
+                                    ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Issuing...</span>
+                                    : <span className="flex items-center gap-2"><BookOpen className="w-4 h-4" />Issue Book</span>
+                                }
                             </Button>
                         </div>
                     </form>
                 </SheetContent>
             </Sheet>
 
-            {/* ── Return Book Sheet ────────────────────────────── */}
+            {/* ── Return Book Sheet ──────────────────────────────── */}
             <Sheet open={returnOpen} onOpenChange={setReturnOpen}>
-                <SheetContent className="sm:max-w-md p-6">
-                    <SheetHeader className="mb-6 p-0">
+                <SheetContent className="sm:max-w-md">
+                    <SheetHeader className="mb-6">
                         <SheetTitle className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                                 <RotateCcw className="w-4 h-4 text-primary" />
                             </div>
                             Process Return
                         </SheetTitle>
-                        <SheetDescription>
-                            Confirm the return of this book
-                        </SheetDescription>
+                        <SheetDescription>Confirm the return of this book</SheetDescription>
                     </SheetHeader>
 
                     {returningLoan && (
                         <div className="space-y-6">
-                            {/* Book info */}
                             <div className="bg-muted/40 rounded-lg border p-4 space-y-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-12 bg-primary/10 rounded flex items-center justify-center shrink-0">
+                                    <div className="w-10 h-12 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">
                                         <BookOpen className="w-5 h-5 text-primary" />
                                     </div>
                                     <div>
                                         <p className="font-semibold">{returningLoan.book?.title}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {returningLoan.book?.author}
-                                        </p>
+                                        <p className="text-sm text-muted-foreground">{returningLoan.book?.author}</p>
                                     </div>
                                 </div>
-
                                 <Separator />
-
                                 <dl className="space-y-2 text-sm">
                                     {[
                                         { label: 'Student', value: returningLoan.student?.name },
-                                        {
-                                            label: 'Issued on',
-                                            value: new Date(returningLoan.issuedAt).toLocaleDateString(),
-                                        },
-                                        {
-                                            label: 'Due date',
-                                            value: new Date(returningLoan.dueDate).toLocaleDateString(),
-                                        },
+                                        { label: 'Issued on', value: new Date(returningLoan.issuedAt).toLocaleDateString() },
+                                        { label: 'Due date', value: new Date(returningLoan.dueDate).toLocaleDateString() },
                                     ].map(item => (
                                         <div key={item.label} className="flex justify-between">
                                             <dt className="text-muted-foreground">{item.label}</dt>
@@ -610,7 +553,6 @@ export default function AdminLoansPage() {
                                 </dl>
                             </div>
 
-                            {/* Fine warning */}
                             {new Date(returningLoan.dueDate) < new Date() && (
                                 <Alert variant="destructive">
                                     <AlertCircle className="h-4 w-4" />
@@ -621,37 +563,121 @@ export default function AdminLoansPage() {
                             )}
 
                             <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => {
-                                        setReturnOpen(false);
-                                        setReturningLoan(null);
-                                    }}
-                                >
+                                <Button variant="outline" className="flex-1" onClick={() => { setReturnOpen(false); setReturningLoan(null); }}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    className="flex-1"
-                                    onClick={handleReturn}
-                                    disabled={returnLoading}
-                                >
-                                    {returnLoading ? (
-                                        <span className="flex items-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Processing...
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4" /> Confirm Return
-                                        </span>
-                                    )}
+                                <Button className="flex-1" onClick={handleReturn} disabled={returnLoading}>
+                                    {returnLoading
+                                        ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</span>
+                                        : <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />Confirm Return</span>
+                                    }
                                 </Button>
                             </div>
                         </div>
                     )}
                 </SheetContent>
             </Sheet>
-        </div>
+
+            {/* ── Mark Lost Sheet ────────────────────────────────── */}
+            <Sheet open={lostOpen} onOpenChange={setLostOpen}>
+                <SheetContent className="sm:max-w-md px-3">
+                    <SheetHeader className="mb-6">
+                        <SheetTitle className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                                <XCircle className="w-4 h-4 text-red-600" />
+                            </div>
+                            Mark Book as Lost
+                        </SheetTitle>
+                        <SheetDescription>
+                            This will close the loan and apply a replacement fine
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    {losingLoan && (
+                        <div className="space-y-6">
+                            {/* Book info */}
+                            <div className="bg-muted/40 rounded-lg border p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-12 bg-red-50 rounded flex items-center justify-center flex-shrink-0">
+                                        <BookOpen className="w-5 h-5 text-red-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold">{losingLoan.book?.title}</p>
+                                        <p className="text-sm text-muted-foreground">{losingLoan.book?.author}</p>
+                                    </div>
+                                </div>
+                                <Separator />
+                                <dl className="space-y-2 text-sm">
+                                    {[
+                                        { label: 'Student', value: losingLoan.student?.name },
+                                        { label: 'Issued on', value: new Date(losingLoan.issuedAt).toLocaleDateString() },
+                                        { label: 'Due date', value: new Date(losingLoan.dueDate).toLocaleDateString() },
+                                    ].map(item => (
+                                        <div key={item.label} className="flex justify-between">
+                                            <dt className="text-muted-foreground">{item.label}</dt>
+                                            <dd className="font-medium">{item.value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+
+                            {/* Warning */}
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                    This cannot be undone. The book will be removed from inventory
+                                    and the student will be charged a replacement fine.
+                                </AlertDescription>
+                            </Alert>
+
+                            {/* Replacement Cost */}
+                            <div className="space-y-2">
+                                <Label htmlFor="replacementCost">
+                                    Replacement Cost (₹) <span className="text-destructive">*</span>
+                                </Label>
+                                <div>
+                                    <Input
+                                        id="replacementCost"
+                                        type="number"
+                                        min="0"
+                                        value={replacementCost}
+                                        onChange={(e) => setReplacementCost(e.target.value)}
+                                        className="pl-15"
+                                        placeholder="500"
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Default ₹500. Adjust based on book's actual value.
+                                    Any existing overdue fines will be replaced by this amount.
+                                </p>
+                            </div>
+
+                            <Separator />
+
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 cursor-pointer"
+                                    onClick={() => { setLostOpen(false); setLosingLoan(null); }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    className="flex-1 cursor-pointer"
+                                    onClick={handleMarkLost}
+                                    disabled={lostLoading || !replacementCost}
+                                >
+                                    {lostLoading
+                                        ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</span>
+                                        : <span className="flex items-center gap-2"><XCircle className="w-4 h-4" />Confirm Lost</span>
+                                    }
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
+        </div >
     );
 }
