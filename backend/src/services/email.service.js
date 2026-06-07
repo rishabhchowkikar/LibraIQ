@@ -1,5 +1,14 @@
 const nodemailer = require("nodemailer");
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Safe email sender with delay
+const sendEmailWithDelay = async (emailFn, delayMs = 1200) => {
+  const result = await emailFn();
+  await sleep(delayMs); // Wait 1.2s before next email
+  return result;
+};
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -393,4 +402,7 @@ module.exports = {
   sendFinePaidEmail,
   sendAdminOverdueReport,
   sendEmail,
+  // sleep
+  sleep,
+  sendEmailWithDelay,
 };

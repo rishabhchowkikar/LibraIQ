@@ -16,6 +16,7 @@ async function main() {
   // ─── STEP 1: Clean existing data (order matters for FK constraints) ──
   console.log("🧹 Cleaning existing data...");
   await prisma.notification.deleteMany();
+  await prisma.payment.deleteMany();
   await prisma.fine.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.loan.deleteMany();

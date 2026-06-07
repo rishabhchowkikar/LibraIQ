@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
     LayoutDashboard, Library, FileText, CreditCard,
-    BookOpen, LogOut, ChevronUp, Shield, Receipt,
+    BookOpen, LogOut, ChevronUp, Shield, Receipt, TrendingUp,
 } from 'lucide-react';
 
 const navigation = [
@@ -25,6 +25,7 @@ const navigation = [
     { title: 'Books', url: '/admin/books', icon: Library },
     { title: 'Loans', url: '/admin/loans', icon: FileText },
     { title: 'Fines', url: '/admin/fines', icon: Receipt },
+    { title: 'Scores', url: '/admin/scores', icon: TrendingUp },
     { title: 'Payments', url: '/admin/payments', icon: CreditCard },
 ];
 

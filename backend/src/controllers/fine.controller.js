@@ -95,58 +95,6 @@ exports.getMyFines = async (req, res) => {
 };
 
 // POST /api/fines/:id/pay — Mark fine as paid (admin)
-// exports.markAsPaid = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const fine = await prisma.fine.findUnique({
-//       where: { id },
-//       include: {
-//         student: true,
-//         loan: { include: { book: true } },
-//       },
-//     });
-
-//     if (!fine) {
-//       return res.status(404).json({ success: false, error: "Fine not found" });
-//     }
-
-//     if (fine.paidAt) {
-//       return res
-//         .status(400)
-//         .json({ success: false, error: "Fine already paid" });
-//     }
-
-//     const updatedFine = await prisma.fine.update({
-//       where: { id },
-//       data: { paidAt: new Date() },
-//     });
-
-//     // Email + notification
-//     await sendFinePaidEmail({
-//       student: fine.student,
-//       book: fine.loan.book,
-//       amount: fine.amount,
-//     }).catch((err) => console.warn("Email failed:", err.message));
-
-//     await createNotification({
-//       userId: fine.studentId,
-//       type: "FINE_ALERT",
-//       message: `Your fine of ₹${fine.amount} for "${fine.loan.book.title}" has been marked as paid. Thank you!`,
-//     });
-
-//     res.json({
-//       success: true,
-//       message: "Fine marked as paid",
-//       fine: updatedFine,
-//     });
-//   } catch (error) {
-//     res
-//       .status(500)
-//       .json({ success: false, error: "Failed to mark fine as paid" });
-//   }
-// };
-
 exports.markAsPaid = async (req, res) => {
   try {
     const { id } = req.params;

@@ -1,32 +1,106 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Loan } from '@/lib/type';
-import { BookOpen, Calendar, Clock, AlertCircle, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Calendar, Clock, AlertCircle, TrendingUp, CheckCircle2, ArrowRight } from 'lucide-react';
 import { StudentDashboardSkeleton } from '@/components/shared/DashboardSkeleton';
+
+interface ScoreData {
+    score: number;
+    tier: string;
+    nextTier: string | null;
+    pointsToNextTier: number | null;
+    breakdown: {
+        baseScore: number;
+        earlyReturnBonus: number;
+        onTimeBonus: number;
+        latePenalty: number;
+        cleanStreakBonus: number;
+        lostBookPenalty: number;
+        unpaidFinePenalty: number;
+        patternPenalty: number;
+    };
+    stats: {
+        totalLoans: number;
+        earlyReturns: number;
+        onTimeReturns: number;
+        lateReturns: number;
+        lostBooks: number;
+        consecutiveLate: number;
+    };
+}
+
+const TIER_COLORS: Record<string, { stroke: string; badge: string; bar: string; label: string }> = {
+    BRONZE: { stroke: '#ea580c', badge: 'bg-orange-100 text-orange-700 border-orange-200', bar: 'bg-orange-500', label: '🥉 BRONZE' },
+    SILVER: { stroke: '#64748b', badge: 'bg-slate-100 text-slate-700 border-slate-200', bar: 'bg-slate-500', label: '🥈 SILVER' },
+    GOLD: { stroke: '#ca8a04', badge: 'bg-yellow-100 text-yellow-700 border-yellow-200', bar: 'bg-yellow-500', label: '🥇 GOLD' },
+    PLATINUM: { stroke: '#7c3aed', badge: 'bg-purple-100 text-purple-700 border-purple-200', bar: 'bg-purple-500', label: '💎 PLATINUM' },
+};
+
+const TIER_RANGES: Record<string, { start: number; end: number }> = {
+    BRONZE: { start: 0, end: 40 },
+    SILVER: { start: 40, end: 60 },
+    GOLD: { start: 60, end: 80 },
+    PLATINUM: { start: 80, end: 100 },
+};
+
+function ScoreGauge({ score, tier }: { score: number; tier: string }) {
+    const r = 45;
+    const cx = 60;
+    const cy = 60;
+    const circumference = 2 * Math.PI * r;
+    const filled = circumference * 0.75 * (score / 100);
+    const color = (TIER_COLORS[tier] || TIER_COLORS.BRONZE).stroke;
+
+    return (
+        <svg viewBox="0 0 120 120" className="w-28 h-28">
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f3f4f6" strokeWidth="10"
+                strokeDasharray={`${circumference * 0.75} ${circumference}`}
+                strokeLinecap="round" transform={`rotate(135, ${cx}, ${cy})`} />
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="10"
+                strokeDasharray={`${filled} ${circumference}`}
+                strokeLinecap="round" transform={`rotate(135, ${cx}, ${cy})`} />
+            <text x={cx} y={cy - 3} textAnchor="middle" fill={color} fontSize="22" fontWeight="bold">{score}</text>
+            <text x={cx} y={cy + 13} textAnchor="middle" fill="#9ca3af" fontSize="10">/ 100</text>
+        </svg>
+    );
+}
 
 export default function StudentDashboard() {
     const { user } = useAuthStore();
     const [loans, setLoans] = useState<Loan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [scoreData, setScoreData] = useState<ScoreData | null>(null);
+    const [scoreLoading, setScoreLoading] = useState(true);
 
     useEffect(() => {
         fetchLoans();
+        fetchScore();
     }, []);
 
     const fetchLoans = async () => {
         try {
             const { data } = await api.get('/loans/my-loans');
-            if (data.success) {
-                setLoans(data.loans);
-            }
+            if (data.success) setLoans(data.loans);
         } catch {
             toast.error('Failed to load your dashboard');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchScore = async () => {
+        try {
+            const { data } = await api.get('/scores/my-score');
+            if (data.success) setScoreData(data);
+        } catch {
+            // score card silently fails — non-critical
+        } finally {
+            setScoreLoading(false);
         }
     };
 
@@ -48,16 +122,29 @@ export default function StudentDashboard() {
             return { color: 'border-red-200 bg-red-50', text: 'text-red-700', badge: 'bg-red-600 text-white' };
         }
         const daysLeft = getDaysUntilDue(loan.dueDate);
-        if (daysLeft <= 3) {
-            return { color: 'border-orange-200 bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-600 text-white' };
-        }
-        if (daysLeft <= 7) {
-            return { color: 'border-yellow-200 bg-yellow-50', text: 'text-yellow-700', badge: 'bg-yellow-600 text-white' };
-        }
+        if (daysLeft <= 3) return { color: 'border-orange-200 bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-600 text-white' };
+        if (daysLeft <= 7) return { color: 'border-yellow-200 bg-yellow-50', text: 'text-yellow-700', badge: 'bg-yellow-600 text-white' };
         return { color: 'border-green-200 bg-green-50', text: 'text-green-700', badge: 'bg-green-600 text-white' };
     };
 
     if (loading) return <StudentDashboardSkeleton />;
+
+    const tierInfo = TIER_COLORS[scoreData?.tier || 'BRONZE'] || TIER_COLORS.BRONZE;
+    const tierRange = TIER_RANGES[scoreData?.tier || 'BRONZE'] || TIER_RANGES.BRONZE;
+    const tierProgress = scoreData
+        ? Math.min(100, Math.round(((scoreData.score - tierRange.start) / (tierRange.end - tierRange.start)) * 100))
+        : 0;
+
+    const breakdownItems = scoreData ? [
+        { key: 'baseScore', label: 'Base', value: scoreData.breakdown.baseScore },
+        { key: 'earlyReturnBonus', label: 'Early', value: scoreData.breakdown.earlyReturnBonus },
+        { key: 'onTimeBonus', label: 'On-time', value: scoreData.breakdown.onTimeBonus },
+        { key: 'cleanStreakBonus', label: 'Streak', value: scoreData.breakdown.cleanStreakBonus },
+        { key: 'latePenalty', label: 'Late', value: scoreData.breakdown.latePenalty },
+        { key: 'lostBookPenalty', label: 'Lost Book', value: scoreData.breakdown.lostBookPenalty },
+        { key: 'unpaidFinePenalty', label: 'Unpaid Fine', value: scoreData.breakdown.unpaidFinePenalty },
+        { key: 'patternPenalty', label: 'Pattern', value: scoreData.breakdown.patternPenalty },
+    ].filter(item => item.value !== 0) : [];
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -122,6 +209,106 @@ export default function StudentDashboard() {
                     <p className="text-xs text-gray-500">Past due date</p>
                 </div>
             </div>
+
+            {/* Reader Score Card */}
+            {scoreLoading ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 animate-pulse">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="h-5 bg-gray-200 rounded w-32" />
+                        <div className="h-4 bg-gray-200 rounded w-24" />
+                    </div>
+                    <div className="flex items-start gap-6">
+                        <div className="w-28 h-28 rounded-full bg-gray-200 shrink-0" />
+                        <div className="flex-1 space-y-3">
+                            <div className="grid grid-cols-4 gap-3">
+                                {[0, 1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-200 rounded-lg" />)}
+                            </div>
+                            <div className="h-3 bg-gray-200 rounded w-full" />
+                            <div className="flex gap-2">
+                                {[0, 1, 2].map(i => <div key={i} className="h-6 bg-gray-200 rounded-md w-20" />)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : scoreData ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-gray-700" />
+                            <h2 className="text-xl font-bold text-gray-900">Reader Score</h2>
+                        </div>
+                        <Link
+                            href="/student/score"
+                            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                        >
+                            View Full Score <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                        {/* Gauge + tier badge */}
+                        <div className="flex flex-col items-center gap-2 shrink-0">
+                            <ScoreGauge score={scoreData.score} tier={scoreData.tier} />
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${tierInfo.badge}`}>
+                                {tierInfo.label}
+                            </span>
+                        </div>
+
+                        {/* Right content */}
+                        <div className="flex-1 w-full space-y-4">
+                            {/* Quick stats */}
+                            <div className="grid grid-cols-4 gap-2">
+                                {[
+                                    { label: 'Total', value: scoreData.stats.totalLoans },
+                                    { label: 'Early', value: scoreData.stats.earlyReturns },
+                                    { label: 'On-time', value: scoreData.stats.onTimeReturns },
+                                    { label: 'Late', value: scoreData.stats.lateReturns },
+                                ].map(stat => (
+                                    <div key={stat.label} className="text-center bg-gray-50 rounded-lg p-2.5">
+                                        <p className="text-lg font-bold text-gray-900">{stat.value}</p>
+                                        <p className="text-xs text-gray-500">{stat.label}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Progress to next tier */}
+                            {scoreData.tier !== 'PLATINUM' && scoreData.nextTier ? (
+                                <div>
+                                    <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                                        <span className="font-medium">Progress to {scoreData.nextTier}</span>
+                                        <span>{scoreData.pointsToNextTier} pts needed</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all ${tierInfo.bar}`}
+                                            style={{ width: `${tierProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-purple-600 font-semibold">🎉 You've reached the highest tier!</p>
+                            )}
+
+                            {/* Score breakdown chips */}
+                            {breakdownItems.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {breakdownItems.map(item => (
+                                        <span
+                                            key={item.key}
+                                            className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${item.value > 0
+                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                : 'bg-red-50 text-red-700 border border-red-200'
+                                                }`}
+                                        >
+                                            {item.value > 0 ? '+' : ''}{item.value} {item.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {/* Active Loans */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

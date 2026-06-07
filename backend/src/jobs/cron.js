@@ -3,7 +3,8 @@ const {
   runFineAccrual,
   sendDueReminders,
 } = require("../services/fine.service");
-const { sendAdminOverdueReport } = require("../services/email.service");
+const { sendAdminOverdueReport, sleep } = require("../services/email.service");
+const { recomputeAllScores } = require("../services/reader-score.service");
 const prisma = require("../config/database");
 
 const initCronjobs = () => {
@@ -65,6 +66,7 @@ const initCronjobs = () => {
         }).catch((err) =>
           console.warn(`Admin report email failed: ${err.message}`),
         );
+        await sleep(2000);
       }
 
       console.log(`✅ [CRON] Admin report sent to ${admins.length} admin(s)`);
@@ -72,10 +74,23 @@ const initCronjobs = () => {
       console.error("❌ [CRON] Admin report failed:", error.message);
     }
   });
+
+  // ─── Reader Score Recomputation — Every Sunday midnight ────
+  cron.schedule("0 0 * * 0", async () => {
+    console.log("\n🧠 [CRON] Sunday — Recomputing all Reader Scores...");
+    try {
+      const result = await recomputeAllScores();
+      console.log("✅ [CRON] Score recomputation complete:", result);
+    } catch (error) {
+      console.error("❌ [CRON] Score recomputation failed:", error.message);
+    }
+  });
+
   console.log("✅ Cron jobs initialized:");
   console.log("   • Fine accrual    → daily at midnight");
   console.log("   • Due reminders   → daily at 9 AM");
   console.log("   • Admin report    → daily at 9 AM");
+  console.log("   • Reader Score    → every Sunday midnight");
 };
 
 module.exports = { initCronjobs };

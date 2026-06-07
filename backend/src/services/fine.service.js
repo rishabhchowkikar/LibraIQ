@@ -1,6 +1,6 @@
 const prisma = require("../config/database");
 
-const { sendOverdueEmail } = require("./email.service");
+const { sendOverdueEmail, sleep } = require("./email.service");
 const { createNotification } = require("./notification.service");
 const FINE_RATE = parseFloat(process.env.FINE_RATE_STANDARD || "5");
 const FINE_CAP = parseFloat(process.env.FINE_CAP || "200");
@@ -110,6 +110,8 @@ const runFineAccrual = async () => {
             fineAmount: totalFine,
           }).catch((err) => console.warn("Email failed:", err.message));
 
+          await sleep(2000);
+
           // In-app notification
           await createNotification({
             userId: loan.studentId,
@@ -175,6 +177,8 @@ const sendDueReminders = async () => {
         daysLeft: daysAhead,
       }).catch((err) => console.warn("Email failed:", err.message));
 
+      await sleep(2000); // ← ADD
+
       // In - app notifications
       await createNotification({
         userId: loan.studentId,
@@ -209,6 +213,8 @@ const sendDueReminders = async () => {
       dueDate: loan.dueDate,
       daysLeft: 0,
     }).catch((err) => console.warn("Email failed:", err.message));
+
+    await sleep(2000);
 
     await createNotification({
       userId: loan.studentId,
