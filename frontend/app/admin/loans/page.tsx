@@ -98,6 +98,41 @@ export default function AdminLoansPage() {
     const [replacementCost, setReplacementCost] = useState('500');
     const [lostLoading, setLostLoading] = useState(false);
 
+    // Student search state
+    const [studentQuery, setStudentQuery] = useState('');
+    const [studentResults, setStudentResults] = useState<{ id: string, name: string, email: string, trustTier: string }[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<{
+        id: string, name: string, email: string, trustTier: string
+    } | null>(null);
+    const [searchingStudents, setSearchingStudents] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    // deboncing the student search input
+    useEffect(() => {
+        if (studentQuery.trim().length < 2) {
+            setStudentResults([])
+            setShowDropdown(false)
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setSearchingStudents(true)
+            try {
+                const { data } = await api.get(`/auth/users/search?q=${encodeURIComponent(studentQuery)}`);
+                if (data.success) {
+                    setStudentResults(data.users);
+                    setShowDropdown(true);
+                }
+            } catch (error) {
+                setStudentResults([]);
+            } finally {
+                setSearchingStudents(false)
+            }
+        }, 300);
+
+        return () => clearTimeout(timer)
+    }, [studentQuery])
+
     useEffect(() => { fetchData(); }, []);
 
     const fetchData = async () => {
@@ -164,24 +199,33 @@ export default function AdminLoansPage() {
     const handleIssue = async (e: React.FormEvent) => {
         e.preventDefault();
         setIssueError('');
+
+        if (!selectedStudent) {
+            setIssueError('Please select a student');
+            return;
+        }
+
         setIssueLoading(true);
         try {
-            const { data } = await api.post('/loans/issue', issueData);
+            const { data } = await api.post('/loans/issue', {
+                studentId: selectedStudent.id, // ← UUID used internally
+                bookId: issueData.bookId,
+            });
             if (data.success) {
                 await fetchData();
                 setIssueOpen(false);
                 setIssueData({ studentId: '', bookId: '' });
+                setSelectedStudent(null);
+                setStudentQuery('');
                 toast.success('Book issued successfully!');
             }
         } catch (err: any) {
             const msg = err.response?.data?.error || 'Failed to issue book';
             setIssueError(msg);
-            toast.error(msg);
         } finally {
             setIssueLoading(false);
         }
     };
-
     const handleReturn = async () => {
         if (!returningLoan) return;
         setReturnLoading(true);
@@ -356,7 +400,14 @@ export default function AdminLoansPage() {
                     </div>
                 </div>
                 <Button
-                    onClick={() => { setIssueError(''); setIssueData({ studentId: '', bookId: '' }); setIssueOpen(true); }}
+                    onClick={() => {
+                        setIssueError('');
+                        setIssueData({ studentId: '', bookId: '' });
+                        setSelectedStudent(null);
+                        setStudentQuery('');
+                        setStudentResults([]);
+                        setIssueOpen(true);
+                    }}
                     className="gap-2"
                 >
                     <Plus className="w-4 h-4" />
@@ -446,8 +497,9 @@ export default function AdminLoansPage() {
             </Card>
 
             {/* ── Issue Book Sheet ───────────────────────────────── */}
+            {/* ── Issue Book Sheet ───────────────────────────────── */}
             <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
-                <SheetContent className="sm:max-w-md">
+                <SheetContent className="sm:max-w-md p-4">
                     <SheetHeader className="mb-6">
                         <SheetTitle className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -455,7 +507,7 @@ export default function AdminLoansPage() {
                             </div>
                             Issue a Book
                         </SheetTitle>
-                        <SheetDescription>Assign an available book to a student</SheetDescription>
+                        <SheetDescription>Search for a student and assign an available book</SheetDescription>
                     </SheetHeader>
 
                     {issueError && (
@@ -466,18 +518,97 @@ export default function AdminLoansPage() {
                     )}
 
                     <form onSubmit={handleIssue} className="space-y-5">
+                        {/* Student Search */}
                         <div className="space-y-2">
-                            <Label htmlFor="studentId">Student ID</Label>
-                            <Input
-                                id="studentId"
-                                required
-                                placeholder="Paste student UUID..."
-                                value={issueData.studentId}
-                                onChange={(e) => setIssueData({ ...issueData, studentId: e.target.value })}
-                            />
-                            <p className="text-xs text-muted-foreground">Find student IDs from your database</p>
+                            <Label>Student</Label>
+
+                            {/* Selected student chip */}
+                            {selectedStudent ? (
+                                <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold">
+                                            {selectedStudent.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold">{selectedStudent.name}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedStudent.email}</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                        onClick={() => {
+                                            setSelectedStudent(null);
+                                            setStudentQuery('');
+                                            setStudentResults([]);
+                                        }}
+                                    >
+                                        Change
+                                    </Button>
+                                </div>
+                            ) : (
+                                /* Search input + dropdown */
+                                <div className="relative">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search by name or email..."
+                                            value={studentQuery}
+                                            onChange={(e) => setStudentQuery(e.target.value)}
+                                            className="pl-9"
+                                            autoComplete="off"
+                                        />
+                                        {searchingStudents && (
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        )}
+                                    </div>
+
+                                    {/* Dropdown results */}
+                                    {showDropdown && studentResults.length > 0 && (
+                                        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+                                            {studentResults.map(student => (
+                                                <button
+                                                    key={student.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedStudent(student);
+                                                        setStudentQuery('');
+                                                        setShowDropdown(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                                                >
+                                                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                                                        {student.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">{student.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                                                    </div>
+                                                    <Badge variant="secondary" className="text-[10px] flex-shrink-0 capitalize">
+                                                        {student.trustTier.toLowerCase()}
+                                                    </Badge>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* No results */}
+                                    {showDropdown && studentResults.length === 0 && !searchingStudents && studentQuery.length >= 2 && (
+                                        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-lg p-4 text-center">
+                                            <p className="text-sm text-muted-foreground">No students found for "{studentQuery}"</p>
+                                        </div>
+                                    )}
+
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Type at least 2 characters to search
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
+                        {/* Book Select */}
                         <div className="space-y-2">
                             <Label htmlFor="bookId">Select Book</Label>
                             <select
@@ -494,18 +625,35 @@ export default function AdminLoansPage() {
                                     </option>
                                 ))}
                             </select>
+                            {books.filter(b => b.availableCopies > 0).length === 0 && (
+                                <p className="text-xs text-red-500">No books currently available</p>
+                            )}
                         </div>
 
                         <Separator />
 
                         <div className="flex gap-3">
-                            <Button type="button" variant="outline" className="flex-1" onClick={() => setIssueOpen(false)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 cursor-pointer"
+                                onClick={() => setIssueOpen(false)}
+                            >
                                 Cancel
                             </Button>
-                            <Button type="submit" className="flex-1" disabled={issueLoading}>
+                            <Button
+                                type="submit"
+                                className="flex-1 cursor-pointer"
+                                disabled={issueLoading || !selectedStudent}
+                            >
                                 {issueLoading
-                                    ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Issuing...</span>
-                                    : <span className="flex items-center gap-2"><BookOpen className="w-4 h-4" />Issue Book</span>
+                                    ? <span className="flex items-center gap-2">
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Issuing...
+                                    </span>
+                                    : <span className="flex items-center gap-2">
+                                        <BookOpen className="w-4 h-4" />Issue Book
+                                    </span>
                                 }
                             </Button>
                         </div>

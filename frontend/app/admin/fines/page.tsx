@@ -123,11 +123,16 @@ export default function AdminFinesPage() {
 
     const handlePay = async (fine: Fine) => {
         try {
-            await api.post(`/fines/${fine.id}/pay`);
+            const { data } = await api.post(`/fines/${fine.id}/pay`);
             await fetchFines();
-            toast.success(`Fine of ₹${fine.amount} marked as paid`);
+            toast.success(
+                data.message || `₹${fine.amount} cash payment recorded`,
+                {
+                    description: data.receipt ? `Receipt: ${data.receipt}` : undefined,
+                }
+            );
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to mark as paid');
+            toast.error(err.response?.data?.error || 'Failed to record payment');
         }
     };
 
@@ -247,21 +252,21 @@ export default function AdminFinesPage() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => handlePay(fine)}
-                                                className="h-7 text-xs gap-1 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
+                                                className="h-7 text-xs gap-1 hover:!bg-green-400 hover:!text-green-700 hover:!border-green-300 cursor-pointer"
                                             >
                                                 <CheckCircle2 className="w-3 h-3" />
                                                 Paid
                                             </Button>
                                             <Button variant="outline" size="sm"
                                                 onClick={() => { setLinkFine(fine); setGeneratedLink(null); setLinkOpen(true); }}
-                                                className="h-7 text-xs gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                                className="h-7 text-xs gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 cursor-pointer">
                                                 <LinkIcon className="w-3 h-3" />Payment Link
                                             </Button>
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => openWaive(fine)}
-                                                className="h-7 text-xs gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                                                className="h-7 text-xs gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 cursor-pointer"
                                             >
                                                 <ShieldCheck className="w-3 h-3" />
                                                 Waive
@@ -343,7 +348,7 @@ export default function AdminFinesPage() {
                 <Tabs defaultValue="unpaid">
                     <div className="px-6 pt-4">
                         <TabsList>
-                            <TabsTrigger value="unpaid" className="gap-1.5 text-xs">
+                            <TabsTrigger value="unpaid" className="gap-1.5 text-xs cursor-pointer">
                                 Unpaid
                                 {unpaidFines.length > 0 && (
                                     <Badge className="text-xs px-1.5 bg-red-100 text-red-700 border-0">
@@ -351,13 +356,13 @@ export default function AdminFinesPage() {
                                     </Badge>
                                 )}
                             </TabsTrigger>
-                            <TabsTrigger value="paid" className="text-xs">
+                            <TabsTrigger value="paid" className="text-xs cursor-pointer">
                                 Paid <Badge variant="secondary" className="text-xs px-1.5 ml-1">{fines.filter(f => f.paidAt).length}</Badge>
                             </TabsTrigger>
-                            <TabsTrigger value="waived" className="text-xs">
+                            <TabsTrigger value="waived" className="text-xs cursor-pointer">
                                 Waived <Badge variant="secondary" className="text-xs px-1.5 ml-1">{fines.filter(f => f.waivedBy).length}</Badge>
                             </TabsTrigger>
-                            <TabsTrigger value="all" className="text-xs">
+                            <TabsTrigger value="all" className="text-xs cursor-pointer">
                                 All <Badge variant="secondary" className="text-xs px-1.5 ml-1">{fines.length}</Badge>
                             </TabsTrigger>
                         </TabsList>

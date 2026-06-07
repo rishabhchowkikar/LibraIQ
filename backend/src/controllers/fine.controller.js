@@ -95,10 +95,64 @@ exports.getMyFines = async (req, res) => {
 };
 
 // POST /api/fines/:id/pay — Mark fine as paid (admin)
+// exports.markAsPaid = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const fine = await prisma.fine.findUnique({
+//       where: { id },
+//       include: {
+//         student: true,
+//         loan: { include: { book: true } },
+//       },
+//     });
+
+//     if (!fine) {
+//       return res.status(404).json({ success: false, error: "Fine not found" });
+//     }
+
+//     if (fine.paidAt) {
+//       return res
+//         .status(400)
+//         .json({ success: false, error: "Fine already paid" });
+//     }
+
+//     const updatedFine = await prisma.fine.update({
+//       where: { id },
+//       data: { paidAt: new Date() },
+//     });
+
+//     // Email + notification
+//     await sendFinePaidEmail({
+//       student: fine.student,
+//       book: fine.loan.book,
+//       amount: fine.amount,
+//     }).catch((err) => console.warn("Email failed:", err.message));
+
+//     await createNotification({
+//       userId: fine.studentId,
+//       type: "FINE_ALERT",
+//       message: `Your fine of ₹${fine.amount} for "${fine.loan.book.title}" has been marked as paid. Thank you!`,
+//     });
+
+//     res.json({
+//       success: true,
+//       message: "Fine marked as paid",
+//       fine: updatedFine,
+//     });
+//   } catch (error) {
+//     res
+//       .status(500)
+//       .json({ success: false, error: "Failed to mark fine as paid" });
+//   }
+// };
+
 exports.markAsPaid = async (req, res) => {
   try {
     const { id } = req.params;
+    const adminId = req.user.userId;
 
+    // ✅ Fix 1: findUnique not findMany
     const fine = await prisma.fine.findUnique({
       where: { id },
       include: {
@@ -111,39 +165,79 @@ exports.markAsPaid = async (req, res) => {
       return res.status(404).json({ success: false, error: "Fine not found" });
     }
 
-    if (fine.paidAt) {
+    if (fine.paidAt || fine.waivedBy) {
       return res
         .status(400)
-        .json({ success: false, error: "Fine already paid" });
+        .json({ success: false, error: "Fine already cleared" });
     }
 
-    const updatedFine = await prisma.fine.update({
-      where: { id },
-      data: { paidAt: new Date() },
+    // ✅ Fix 2: correct spelling generateReceipt
+    const { generateReceipt } = require("../services/payment.service");
+    const receipt = generateReceipt();
+
+    const [payment] = await prisma.$transaction(async (tx) => {
+      const newPayment = await tx.payment.create({
+        data: {
+          receipt,
+          studentId: fine.studentId,
+          amount: fine.amount,
+          method: "CASH",
+          status: "SUCCESS",
+          fineIds: [fine.id],
+          createdBy: adminId, // ✅ Fix 3: createdBy not createdAt
+          paidAt: new Date(),
+        },
+      });
+
+      await tx.fine.update({
+        where: { id },
+        data: {
+          paidAt: new Date(),
+          paymentId: newPayment.id,
+          paymentMethod: "CASH",
+        },
+      });
+
+      return [newPayment];
     });
 
-    // Email + notification
-    await sendFinePaidEmail({
-      student: fine.student,
-      book: fine.loan.book,
-      amount: fine.amount,
-    }).catch((err) => console.warn("Email failed:", err.message));
+    const remaining = await prisma.fine.count({
+      where: { studentId: fine.studentId, paidAt: null, waivedBy: null },
+    });
+    const allCleared = remaining === 0;
 
+    const {
+      sendPaymentReceiptEmail,
+    } = require("../services/payment-email.service");
+    await sendPaymentReceiptEmail({
+      student: fine.student,
+      amount: fine.amount,
+      receipt,
+      method: "CASH",
+      fineCount: 1,
+      allCleared,
+    }).catch((err) => console.warn("Receipt email failed:", err.message));
+
+    const { createNotification } = require("../services/notification.service");
     await createNotification({
       userId: fine.studentId,
       type: "FINE_ALERT",
-      message: `Your fine of ₹${fine.amount} for "${fine.loan.book.title}" has been marked as paid. Thank you!`,
+      message: allCleared
+        ? `🎉 All fines cleared! ₹${fine.amount} cash payment recorded. Receipt: ${receipt}`
+        : `✅ Cash payment of ₹${fine.amount} recorded by librarian. Receipt: ${receipt}`,
     });
+
+    console.log(`💵 Cash payment recorded: ${receipt} — ₹${fine.amount}`);
 
     res.json({
       success: true,
-      message: "Fine marked as paid",
-      fine: updatedFine,
+      message: `₹${fine.amount} cash payment recorded successfully`,
+      receipt,
+      allCleared,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to mark fine as paid" });
+    console.error("Mark paid error:", error);
+    res.status(500).json({ success: false, error: "Failed to record payment" });
   }
 };
 
