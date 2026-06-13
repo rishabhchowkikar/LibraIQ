@@ -79,6 +79,63 @@ if (process.env.NODE_ENV === "development") {
       }
     },
   );
+
+  fineRouter.post(
+    "/test/email/overdue",
+    authenticate,
+    requireRole("ADMIN"),
+    async (req, res) => {
+      try {
+        const { sendOverdueEmail } = require("../services/email.service");
+        await sendOverdueEmail({
+          student: {
+            name: "TEST Student",
+            email: process.env.DEV_EMAIL_OVERRIDE,
+          },
+          book: {
+            title: "Physics Volume-1",
+            author: "NCERT",
+          },
+          daysOverdue: 5,
+          fineAmount: 25,
+        });
+
+        res.json({
+          success: true,
+          message: "Overdue email sent - check inbox",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    },
+  );
+
+  fineRouter.post(
+    "/test/email/reminder",
+    authenticate,
+    requireRole("ADMIN"),
+    async (req, res) => {
+      try {
+        const { sendDueReminderEmail } = require("../services/email.service");
+        await sendDueReminderEmail({
+          student: {
+            name: "Test Student",
+            email: process.env.DEV_EMAIL_OVERRIDE,
+          },
+          book: { title: "Physics Volume-2", author: "NCERT" },
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          daysLeft: 3,
+        });
+
+        res.json({
+          success: true,
+          message: "Reminder email sent - check inbox",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    },
+  );
 }
 
 module.exports = fineRouter;

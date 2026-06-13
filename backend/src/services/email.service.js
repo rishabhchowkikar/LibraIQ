@@ -36,10 +36,11 @@ const verifyEmailConnection = async () => {
 // Base email wrapper
 const sendEmail = async ({ to, subject, html }) => {
   try {
+    const recipient = process.env.DEV_EMAIL_OVERRIDE;
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to,
-      subject,
+      to: recipient,
+      subject: `[DEV → ${to}] ${subject}`,
       html,
     });
 
