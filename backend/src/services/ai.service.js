@@ -1,8 +1,7 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
 const prisma = require("../config/database");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
+// ─── Simple in-memory cache ───────────────────────────────────
 const cache = new Map();
 
 const getCached = (key) => {
@@ -15,29 +14,46 @@ const getCached = (key) => {
   return item.data;
 };
 
-const setCache = (key, data, ttlHours = 20) => {
+const setCache = (key, data, ttlHours = 24) => {
   cache.set(key, {
     data,
     expiresAt: Date.now() + ttlHours * 60 * 60 * 1000,
   });
 };
 
-// ─── Ask Gemini helper ────────────────────────────────────────
-const askGemini = async (prompt) => {
+// ─── Ask Groq helper ──────────────────────────────────────────
+const askGroq = async (prompt, systemPrompt = "") => {
   try {
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
-    });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+        messages: [
+          ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      },
+    );
+
+    return response.data.choices[0]?.message?.content || null;
   } catch (error) {
-    console.error("Gemini API error:", error.message);
+    const errMsg = error.response?.data?.error?.message || error.message;
+    console.error("Groq API error:", errMsg);
     return null;
   }
 };
 
-// ─── Parse JSON safely from Gemini response ──────────────────
-const parseGeminiJSON = (text) => {
+// ─── Parse JSON safely from Groq response ────────────────────
+const parseGroqJSON = (text) => {
   try {
     const cleaned = text
       .replace(/```json/g, "")
@@ -52,20 +68,17 @@ const parseGeminiJSON = (text) => {
 // ═══════════════════════════════════════════════════════════════
 // FEATURE 1: Book Recommendations
 // ═══════════════════════════════════════════════════════════════
-
 const getBookRecommendations = async (studentId) => {
   const cacheKey = `recommendations:${studentId}`;
   const cached = getCached(cacheKey);
   if (cached) return { ...cached, fromCache: true };
 
-  // Fetch student data
   const student = await prisma.user.findUnique({
     where: { id: studentId },
     select: { name: true, trustTier: true },
   });
 
-  // fetch students's loan history
-  const loan = await prisma.loan.findMany({
+  const loans = await prisma.loan.findMany({
     where: { studentId },
     include: {
       book: { select: { id: true, title: true, author: true, genre: true } },
@@ -73,95 +86,77 @@ const getBookRecommendations = async (studentId) => {
     orderBy: { issuedAt: "desc" },
   });
 
-  const borrowedBookIds = loan.map((l) => l.bookId);
-  const borrowedBooks = loan.map((l) => ({
+  const borrowedBookIds = loans.map((l) => l.bookId);
+  const borrowedBooks = loans.map((l) => ({
     title: l.book.title,
     author: l.book.author,
     genre: l.book.genre,
   }));
 
-  // Get genre preference
   const genreCounts = {};
   borrowedBooks.forEach((b) => {
     genreCounts[b.genre] = (genreCounts[b.genre] || 0) + 1;
   });
-
   const topGenres = Object.entries(genreCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([genre]) => genre);
 
-  // Fetch available books not already borrowed
   const availableBooks = await prisma.book.findMany({
     where: {
       availableCopies: { gt: 0 },
       id: { notIn: borrowedBookIds },
     },
-    select: {
-      id: true,
-      title: true,
-      author: true,
-      genre: true,
-      description: true,
-    },
+    select: { id: true, title: true, author: true, genre: true },
     take: 20,
   });
 
   if (availableBooks.length === 0) {
-    return {
-      recommendations: [],
-      message: "No available books to recommend at this time.",
-    };
+    return { recommendations: [], message: "No available books to recommend." };
   }
 
-  const prompt = `
-You are a librarian AI assistant for LibraIQ library management system.
+  const prompt = `You are a librarian AI for LibraIQ.
 
-Student Profile:
-- Name: ${student.name}
-- Trust Tier: ${student.trustTier}
-- Books Previously Borrowed: ${borrowedBooks.length > 0 ? JSON.stringify(borrowedBooks) : "No history yet"}
-- Favourite Genres: ${topGenres.length > 0 ? topGenres.join(", ") : "No preference yet"}
+Student: ${student.name} (${student.trustTier} tier)
+Previously borrowed: ${JSON.stringify(borrowedBooks)}
+Top genres: ${topGenres.join(", ") || "None yet"}
 
-Available Books in Library:
-${JSON.stringify(availableBooks)}
+Available books: ${JSON.stringify(availableBooks)}
 
-Task: Recommend exactly 3 books from the available books list for this student.
-Base recommendations on their reading history and genre preferences.
-If no history, recommend popular books across different genres.
+Recommend exactly 3 books from the available list based on reading history.
+If no history, recommend diverse popular books.
 
-Respond ONLY with valid JSON. No explanation outside JSON.
-Format:
+Respond ONLY with valid JSON, no extra text:
 {
   "recommendations": [
     {
-      "bookId": "the exact id from available books",
+      "bookId": "exact id from available books",
       "title": "book title",
-      "author": "book author",
+      "author": "book author", 
       "genre": "book genre",
-      "reason": "2-3 sentence personalised reason why this book suits this student"
+      "reason": "2-3 sentence personalised reason"
     }
   ],
-  "summary": "One sentence about the student's reading taste"
-}
-`;
+  "summary": "one sentence about student reading taste"
+}`;
 
-  const response = await askGemini(prompt);
+  const response = await askGroq(prompt);
+
   if (!response) {
-    return {
+    const fallback = {
       recommendations: availableBooks.slice(0, 3).map((b) => ({
         bookId: b.id,
         title: b.title,
         author: b.author,
         genre: b.genre,
-        reason: "Recommended based on library collection.",
+        reason: "Recommended from our library collection.",
       })),
       summary: "Explore our collection!",
-      fromCache: false,
     };
+    return { ...fallback, fromCache: false };
   }
 
-  const parsed = parseGeminiJSON(response);
+  const parsed = parseGroqJSON(response);
   if (!parsed) {
     return {
       recommendations: availableBooks.slice(0, 3).map((b) => ({
@@ -169,9 +164,10 @@ Format:
         title: b.title,
         author: b.author,
         genre: b.genre,
-        reason: "Recommended based on library collection.",
+        reason: "Recommended from our library collection.",
       })),
       summary: "Explore our collection!",
+      fromCache: false,
     };
   }
 
@@ -182,7 +178,6 @@ Format:
 // ═══════════════════════════════════════════════════════════════
 // FEATURE 2: Score Explanation
 // ═══════════════════════════════════════════════════════════════
-
 const getScoreExplanation = async (studentId, scoreData) => {
   const cacheKey = `score-explanation:${studentId}:${scoreData.score}`;
   const cached = getCached(cacheKey);
@@ -193,83 +188,56 @@ const getScoreExplanation = async (studentId, scoreData) => {
     select: { name: true },
   });
 
-  const tierEmoji = {
-    BRONZE: "🥉",
-    SILVER: "🥈",
-    GOLD: "🥇",
-    PLATINUM: "💎",
-  };
-
-  const prompt = `
-You are a friendly librarian AI for LibraIQ library system.
+  const prompt = `You are a friendly librarian AI for LibraIQ.
 
 Student: ${student.name}
-Current Reader Score: ${scoreData.score}/100
-Current Tier: ${tierEmoji[scoreData.tier]} ${scoreData.tier}
-${scoreData.nextTier ? `Next Tier: ${scoreData.nextTier} (${scoreData.pointsToNextTier} points away)` : "Already at highest tier: PLATINUM!"}
+Reader Score: ${scoreData.score}/100
+Tier: ${scoreData.tier}
+${scoreData.nextTier ? `Next Tier: ${scoreData.nextTier} (${scoreData.pointsToNextTier} points away)` : "Highest tier reached!"}
 
-Score Breakdown:
+Breakdown:
 - Base Score: ${scoreData.breakdown.baseScore}
-- Early Return Bonus: ${scoreData.breakdown.earlyReturnBonus > 0 ? "+" : ""}${scoreData.breakdown.earlyReturnBonus}
-- On Time Bonus: ${scoreData.breakdown.onTimeBonus > 0 ? "+" : ""}${scoreData.breakdown.onTimeBonus}
-- Late Return Penalty: ${scoreData.breakdown.latePenalty}
+- Early Return Bonus: ${scoreData.breakdown.earlyReturnBonus}
+- On Time Bonus: ${scoreData.breakdown.onTimeBonus}
+- Late Penalty: ${scoreData.breakdown.latePenalty}
 - Lost Book Penalty: ${scoreData.breakdown.lostBookPenalty}
-- Clean Streak Bonus: ${scoreData.breakdown.cleanStreakBonus > 0 ? "+" : ""}${scoreData.breakdown.cleanStreakBonus}
+- Clean Streak Bonus: ${scoreData.breakdown.cleanStreakBonus}
 - Unpaid Fine Penalty: ${scoreData.breakdown.unpaidFinePenalty}
 - Pattern Penalty: ${scoreData.breakdown.patternPenalty}
 
-Stats:
-- Total Loans: ${scoreData.stats.totalLoans}
-- Early Returns: ${scoreData.stats.earlyReturns}
-- On Time Returns: ${scoreData.stats.onTimeReturns}
-- Late Returns: ${scoreData.stats.lateReturns}
-- Lost Books: ${scoreData.stats.lostBooks}
+Stats: ${scoreData.stats.totalLoans} loans, ${scoreData.stats.earlyReturns} early, ${scoreData.stats.onTimeReturns} on time, ${scoreData.stats.lateReturns} late
 
-Task: Write a friendly, encouraging, personalised explanation for ${student.name.split(" ")[0]} about:
-1. Why their score is ${scoreData.score}
-2. What they did well
-3. What brought the score down (if anything)
-4. Specific actionable tip to improve or maintain tier
-
-Keep it warm, encouraging, and under 100 words.
-Address the student directly (use "you").
+Write a friendly 2-3 sentence explanation addressing ${student.name.split(" ")[0]} directly.
+Mention what they did well and one specific tip to improve or maintain tier.
 
 Respond ONLY with valid JSON:
 {
-  "explanation": "your explanation here",
-  "highlight": "one key positive thing in 5-8 words",
-  "tip": "one specific actionable tip in one sentence"
-}
-`;
+  "explanation": "friendly explanation here",
+  "highlight": "one key positive in 5-8 words",
+  "tip": "one specific actionable tip"
+}`;
 
-  const response = await askGemini(prompt);
-  if (!response) {
-    const fallback = {
-      explanation: `Your Reader Score of ${scoreData.score} places you in ${scoreData.tier} tier. Keep returning books on time to improve your score!`,
-      highlight: "Keep up the great reading!",
-      tip: scoreData.nextTier
-        ? `Return your next ${scoreData.pointsToNextTier >= 7 ? "few" : "next"} books on time to reach ${scoreData.nextTier}!`
-        : "Maintain your Platinum status by returning books early!",
-    };
-    return { ...fallback, fromCache: false };
-  }
+  const response = await askGroq(prompt);
 
-  const parsed = parseGeminiJSON(response);
-  if (!parsed) {
-    return {
-      explanation: `Your Reader Score is ${scoreData.score}. Keep up the good work!`,
-      highlight: "Great reading habits!",
-      tip: "Return books on time to improve your score.",
-      fromCache: false,
-    };
-  }
+  const fallback = {
+    explanation: `Your score of ${scoreData.score} puts you in ${scoreData.tier} tier. ${scoreData.nextTier ? `Return books on time to reach ${scoreData.nextTier}!` : "Excellent — keep it up!"}`,
+    highlight: "Keep up your reading habits!",
+    tip: scoreData.nextTier
+      ? `Return your next book early to gain +7 points toward ${scoreData.nextTier}!`
+      : "Maintain Platinum by returning books on time!",
+  };
+
+  if (!response) return { ...fallback, fromCache: false };
+
+  const parsed = parseGroqJSON(response);
+  if (!parsed) return { ...fallback, fromCache: false };
 
   setCache(cacheKey, parsed, 12);
   return { ...parsed, fromCache: false };
 };
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURE 3: Genre DNA / Reading Personality
+// FEATURE 3: Genre DNA
 // ═══════════════════════════════════════════════════════════════
 const getGenreDNA = async (studentId) => {
   const cacheKey = `genre-dna:${studentId}`;
@@ -284,7 +252,7 @@ const getGenreDNA = async (studentId) => {
   const loans = await prisma.loan.findMany({
     where: { studentId },
     include: {
-      book: { select: { title: true, author: true, genre: true } },
+      book: { select: { title: true, genre: true, author: true } },
     },
   });
 
@@ -303,10 +271,8 @@ const getGenreDNA = async (studentId) => {
   const booksRead = loans.map((l) => ({
     title: l.book.title,
     genre: l.book.genre,
-    author: l.book.author,
   }));
 
-  // Calculate genre breakdown
   const genreCounts = {};
   booksRead.forEach((b) => {
     genreCounts[b.genre] = (genreCounts[b.genre] || 0) + 1;
@@ -318,46 +284,43 @@ const getGenreDNA = async (studentId) => {
     genreBreakdown[genre] = Math.round((count / totalBooks) * 100);
   });
 
-  const prompt = `
-You are a reading personality analyser for LibraIQ library system.
+  const topGenre = Object.entries(genreCounts).sort(
+    (a, b) => b[1] - a[1],
+  )[0]?.[0];
+
+  const prompt = `You are a reading personality analyser for LibraIQ.
 
 Student: ${student.name}
-Total Books Borrowed: ${totalBooks}
+Total Books: ${totalBooks}
 Books Read: ${JSON.stringify(booksRead)}
-Genre Breakdown: ${JSON.stringify(genreBreakdown)} (percentages)
+Genre Breakdown: ${JSON.stringify(genreBreakdown)}%
 
-Task: Analyse this student's reading pattern and create a fun reading personality profile.
+Create a fun reading personality profile.
 
 Respond ONLY with valid JSON:
 {
-  "personalityType": "Creative name for their reading personality (2-4 words, e.g. 'The Knowledge Seeker', 'The Story Hunter')",
-  "emoji": "one relevant emoji for their personality",
-  "description": "2-3 sentences describing their reading personality based on the genres they choose. Make it fun and insightful.",
-  "topGenre": "their most read genre",
-  "insight": "one interesting insight about their reading pattern in one sentence"
-}
-`;
+  "personalityType": "2-4 word creative name like 'The Knowledge Seeker'",
+  "emoji": "one relevant emoji",
+  "description": "2-3 fun sentences about their reading personality",
+  "topGenre": "${topGenre}",
+  "insight": "one interesting insight about their pattern"
+}`;
 
-  const response = await askGemini(prompt);
+  const response = await askGroq(prompt);
+
   if (!response) {
-    const topGenre = Object.entries(genreCounts).sort(
-      (a, b) => b[1] - a[1],
-    )[0]?.[0];
     return {
       personalityType: "Avid Reader",
       emoji: "📚",
-      description: `You love reading ${topGenre || "various genres"} books. Keep exploring!`,
+      description: `You love reading ${topGenre || "various"} books. Keep exploring!`,
       genreBreakdown,
       topGenre,
       fromCache: false,
     };
   }
 
-  const parsed = parseGeminiJSON(response);
+  const parsed = parseGroqJSON(response);
   if (!parsed) {
-    const topGenre = Object.entries(genreCounts).sort(
-      (a, b) => b[1] - a[1],
-    )[0]?.[0];
     return {
       personalityType: "Avid Reader",
       emoji: "📚",
@@ -369,14 +332,13 @@ Respond ONLY with valid JSON:
   }
 
   const result = { ...parsed, genreBreakdown };
-  setCache(cacheKey, result, 168); // 7 days cache
+  setCache(cacheKey, result, 168);
   return { ...result, fromCache: false };
 };
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURE 4: Student Behaviour Summary (Admin)
+// FEATURE 4: Student Summary (Admin)
 // ═══════════════════════════════════════════════════════════════
-
 const getStudentSummary = async (studentId) => {
   const cacheKey = `student-summary:${studentId}`;
   const cached = getCached(cacheKey);
@@ -384,52 +346,24 @@ const getStudentSummary = async (studentId) => {
 
   const student = await prisma.user.findUnique({
     where: { id: studentId },
-    select: {
-      name: true,
-      email: true,
-      trustTier: true,
-      createdAt: true,
-    },
+    select: { name: true, email: true, trustTier: true, createdAt: true },
   });
 
   const loans = await prisma.loan.findMany({
     where: { studentId },
-    include: {
-      book: {
-        select: {
-          title: true,
-          genre: true,
-        },
-      },
-    },
-    orderBy: { issuedAt: "asc" },
+    include: { book: { select: { title: true, genre: true } } },
+    orderBy: { issuedAt: "desc" },
   });
 
-  const fines = await prisma.fine.findMany({
-    where: { studentId },
-  });
+  const fines = await prisma.fine.findMany({ where: { studentId } });
 
-  // Calculate stats
   const totalLoans = loans.length;
   const returnedLoans = loans.filter((l) => l.status === "RETURNED");
   const overdueLoans = loans.filter((l) => l.status === "OVERDUE");
   const lostLoans = loans.filter((l) => l.status === "LOST");
-  const activeLoans = loans.filter((l) => l.status === "ACTIVE");
-  const totalFines = fines.reduce((s, f) => s + f.amount, 0);
   const unpaidFines = fines.filter((f) => !f.paidAt && !f.waivedBy);
+  const totalFines = fines.reduce((s, f) => s + f.amount, 0);
 
-  // Genre breakdown
-  const genreCounts = {};
-  loans.forEach((l) => {
-    genreCounts[l.book.genre] = (genreCounts[l.book.genre] || 0) + 1;
-  });
-  const topGenres = Object.entries(genreCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([g]) => g);
-
-  // Late return analysis
-  // Late return analysis
   let lateReturns = 0;
   let earlyReturns = 0;
   returnedLoans.forEach((l) => {
@@ -439,70 +373,57 @@ const getStudentSummary = async (studentId) => {
     else earlyReturns++;
   });
 
+  const genreCounts = {};
+  loans.forEach((l) => {
+    genreCounts[l.book.genre] = (genreCounts[l.book.genre] || 0) + 1;
+  });
+  const topGenres = Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([g]) => g);
+
   const memberSince = new Date(student.createdAt).toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric",
   });
 
-  const prompt = `
-You are a professional librarian AI assistant for LibraIQ library management system.
-Generate a concise professional summary for a librarian/admin about this student.
+  const prompt = `You are a librarian AI assistant for LibraIQ.
 
-Student Profile:
-- Name: ${student.name}
-- Member Since: ${memberSince}
-- Trust Tier: ${student.trustTier}
+Student: ${student.name} | Member since: ${memberSince} | Tier: ${student.trustTier}
 
-Loan Statistics:
-- Total Loans: ${totalLoans}
-- Currently Active: ${activeLoans.length}
-- Returned: ${returnedLoans.length}
-- Overdue: ${overdueLoans.length}
-- Lost Books: ${lostLoans.length}
-- Early Returns: ${earlyReturns}
-- Late Returns: ${lateReturns}
+Loan Stats:
+- Total: ${totalLoans} | Returned: ${returnedLoans.length}
+- Overdue: ${overdueLoans.length} | Lost: ${lostLoans.length}
+- Early returns: ${earlyReturns} | Late returns: ${lateReturns}
 
-Reading Preferences:
-- Top Genres: ${topGenres.join(", ") || "Not established yet"}
+Fines: Total ₹${totalFines} | Unpaid: ${unpaidFines.length}
+Top Genres: ${topGenres.join(", ") || "None yet"}
 
-Fine History:
-- Total Fines: ₹${totalFines}
-- Unpaid Fines: ${unpaidFines.length} (₹${unpaidFines.reduce((s, f) => s + f.amount, 0)})
-
-Task: Write a professional 3-4 sentence summary that a librarian would read to quickly 
-understand this student's borrowing behaviour, reliability, and reading patterns.
-Mention their tier status and any concerns or commendations.
+Write a professional 3-4 sentence summary for the librarian.
+Include tier status, reliability assessment, and any concerns.
 
 Respond ONLY with valid JSON:
 {
-  "summary": "professional paragraph summary here",
+  "summary": "professional paragraph here",
   "riskLevel": "LOW or MEDIUM or HIGH",
-  "riskReason": "brief reason for risk level in one sentence",
-  "recommendation": "one specific recommendation for the librarian in one sentence"
-}
-`;
+  "riskReason": "brief reason in one sentence",
+  "recommendation": "one specific recommendation for librarian"
+}`;
 
-  const response = await askGemini(prompt);
-  if (!response) {
-    return {
-      summary: `${student.name} is a ${student.trustTier.toLowerCase()} tier member with ${totalLoans} total loans. ${lateReturns > 0 ? `${lateReturns} late return(s) on record.` : "Good return record."} ${unpaidFines.length > 0 ? `Has ${unpaidFines.length} unpaid fine(s).` : "No outstanding fines."}`,
-      riskLevel:
-        unpaidFines.length > 0 || lostLoans.length > 0 ? "MEDIUM" : "LOW",
-      riskReason: unpaidFines.length > 0 ? "Has unpaid fines" : "Good standing",
-      recommendation: "Monitor loan activity regularly.",
-      fromCache: false,
-    };
-  }
-  const parsed = parseGeminiJSON(response);
-  if (!parsed) {
-    return {
-      summary: `${student.name} has ${totalLoans} loans with ${student.trustTier} tier status.`,
-      riskLevel: "LOW",
-      riskReason: "Insufficient data for analysis.",
-      recommendation: "Continue monitoring.",
-      fromCache: false,
-    };
-  }
+  const response = await askGroq(prompt);
+
+  const fallback = {
+    summary: `${student.name} is a ${student.trustTier.toLowerCase()} tier member with ${totalLoans} total loans since ${memberSince}. ${lateReturns > 0 ? `${lateReturns} late return(s) on record.` : "Good return record."} ${unpaidFines.length > 0 ? `Has ${unpaidFines.length} unpaid fine(s).` : "No outstanding fines."}`,
+    riskLevel:
+      unpaidFines.length > 0 || lostLoans.length > 0 ? "MEDIUM" : "LOW",
+    riskReason: unpaidFines.length > 0 ? "Has unpaid fines" : "Good standing",
+    recommendation: "Continue monitoring loan activity regularly.",
+  };
+
+  if (!response) return { ...fallback, fromCache: false };
+
+  const parsed = parseGroqJSON(response);
+  if (!parsed) return { ...fallback, fromCache: false };
 
   setCache(cacheKey, parsed, 24);
   return { ...parsed, fromCache: false };

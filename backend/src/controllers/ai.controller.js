@@ -81,7 +81,8 @@ exports.getStudentSummary = async (req, res) => {
 exports.getStatus = async (req, res) => {
   res.json({
     success: true,
-    configured: !!process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+    configured: !!process.env.GROQ_API_KEY,
+    model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+    provider: "Groq",
   });
 };

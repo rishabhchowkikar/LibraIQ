@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Loan } from '@/lib/type';
-import { BookOpen, Calendar, Clock, AlertCircle, TrendingUp, CheckCircle2, ArrowRight } from 'lucide-react';
+import { BookOpen, Calendar, Clock, AlertCircle, TrendingUp, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
 import { StudentDashboardSkeleton } from '@/components/shared/DashboardSkeleton';
 
 interface ScoreData {
@@ -34,6 +34,14 @@ interface ScoreData {
     };
 }
 
+interface Recommendation {
+    bookId: string;
+    title: string;
+    author: string;
+    genre: string;
+    reason: string;
+}
+
 const TIER_COLORS: Record<string, { stroke: string; badge: string; bar: string; label: string }> = {
     BRONZE: { stroke: '#ea580c', badge: 'bg-orange-100 text-orange-700 border-orange-200', bar: 'bg-orange-500', label: '🥉 BRONZE' },
     SILVER: { stroke: '#64748b', badge: 'bg-slate-100 text-slate-700 border-slate-200', bar: 'bg-slate-500', label: '🥈 SILVER' },
@@ -46,6 +54,14 @@ const TIER_RANGES: Record<string, { start: number; end: number }> = {
     SILVER: { start: 40, end: 60 },
     GOLD: { start: 60, end: 80 },
     PLATINUM: { start: 80, end: 100 },
+};
+
+const GENRE_BADGE: Record<string, string> = {
+    'Self-Help': 'bg-blue-100 text-blue-700 border border-blue-200',
+    'Fiction': 'bg-purple-100 text-purple-700 border border-purple-200',
+    'History': 'bg-amber-100 text-amber-700 border border-amber-200',
+    'Technology': 'bg-green-100 text-green-700 border border-green-200',
+    'Psychology': 'bg-rose-100 text-rose-700 border border-rose-200',
 };
 
 function ScoreGauge({ score, tier }: { score: number; tier: string }) {
@@ -76,10 +92,15 @@ export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [scoreData, setScoreData] = useState<ScoreData | null>(null);
     const [scoreLoading, setScoreLoading] = useState(true);
+    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+    const [recSummary, setRecSummary] = useState('');
+    const [recLoading, setRecLoading] = useState(true);
+    const [recFromCache, setRecFromCache] = useState(false);
 
     useEffect(() => {
         fetchLoans();
         fetchScore();
+        fetchRecommendations();
     }, []);
 
     const fetchLoans = async () => {
@@ -101,6 +122,21 @@ export default function StudentDashboard() {
             // score card silently fails — non-critical
         } finally {
             setScoreLoading(false);
+        }
+    };
+
+    const fetchRecommendations = async () => {
+        try {
+            const { data } = await api.get('/ai/recommendations');
+            if (data.success) {
+                setRecommendations((data.recommendations || []).slice(0, 3));
+                setRecSummary(data.summary || '');
+                setRecFromCache(data.fromCache || false);
+            }
+        } catch {
+            // silently show empty state
+        } finally {
+            setRecLoading(false);
         }
     };
 
@@ -246,7 +282,6 @@ export default function StudentDashboard() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                        {/* Gauge + tier badge */}
                         <div className="flex flex-col items-center gap-2 shrink-0">
                             <ScoreGauge score={scoreData.score} tier={scoreData.tier} />
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${tierInfo.badge}`}>
@@ -254,9 +289,7 @@ export default function StudentDashboard() {
                             </span>
                         </div>
 
-                        {/* Right content */}
                         <div className="flex-1 w-full space-y-4">
-                            {/* Quick stats */}
                             <div className="grid grid-cols-4 gap-2">
                                 {[
                                     { label: 'Total', value: scoreData.stats.totalLoans },
@@ -271,7 +304,6 @@ export default function StudentDashboard() {
                                 ))}
                             </div>
 
-                            {/* Progress to next tier */}
                             {scoreData.tier !== 'PLATINUM' && scoreData.nextTier ? (
                                 <div>
                                     <div className="flex justify-between text-xs text-gray-500 mb-1.5">
@@ -289,7 +321,6 @@ export default function StudentDashboard() {
                                 <p className="text-sm text-purple-600 font-semibold">🎉 You've reached the highest tier!</p>
                             )}
 
-                            {/* Score breakdown chips */}
                             {breakdownItems.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {breakdownItems.map(item => (
@@ -309,6 +340,73 @@ export default function StudentDashboard() {
                     </div>
                 </div>
             ) : null}
+
+            {/* AI Recommendations */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-gray-700" />
+                        <h2 className="text-xl font-bold text-gray-900">Recommended for You</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {recFromCache && !recLoading && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                Cached
+                            </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                            <Sparkles className="w-3 h-3" /> AI Powered
+                        </span>
+                    </div>
+                </div>
+
+                {recLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[0, 1, 2].map(i => (
+                            <div key={i} className="rounded-xl border border-gray-200 p-4 animate-pulse">
+                                <div className="h-4 bg-gray-200 rounded w-16 mb-3" />
+                                <div className="h-5 bg-gray-200 rounded w-3/4 mb-1.5" />
+                                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3" />
+                                <div className="h-3 bg-gray-200 rounded w-full mb-1" />
+                                <div className="h-3 bg-gray-200 rounded w-5/6" />
+                            </div>
+                        ))}
+                    </div>
+                ) : recommendations.length === 0 ? (
+                    <div className="text-center py-10">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <BookOpen className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 font-medium text-sm">No recommendations available yet</p>
+                        <p className="text-xs text-gray-400 mt-1">Borrow a few books and we'll personalise picks for you</p>
+                    </div>
+                ) : (
+                    <>
+                        {recSummary && (
+                            <p className="text-sm text-gray-500 mb-4 italic">{recSummary}</p>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {recommendations.map((rec) => {
+                                const genreBadge = GENRE_BADGE[rec.genre] || 'bg-gray-100 text-gray-600 border border-gray-200';
+                                return (
+                                    <div key={rec.bookId} className="rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col gap-2">
+                                        <span className={`self-start inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${genreBadge}`}>
+                                            {rec.genre}
+                                        </span>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900 text-sm leading-tight">{rec.title}</h3>
+                                            <p className="text-xs text-gray-500 mt-0.5">by {rec.author}</p>
+                                        </div>
+                                        <p className="text-xs text-gray-600 leading-relaxed mt-auto">{rec.reason}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
+                <p className="text-xs text-gray-400 mt-4 text-right">✨ AI Powered by Groq</p>
+            </div>
 
             {/* Active Loans */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
