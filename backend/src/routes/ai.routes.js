@@ -19,7 +19,7 @@ aiRouter.get(
   "/score-explanation",
   authenticate,
   requireRole("STUDENT"),
-  aiController.getGenreDNA,
+  aiController.getScoreExplanation,
 );
 
 aiRouter.get(
