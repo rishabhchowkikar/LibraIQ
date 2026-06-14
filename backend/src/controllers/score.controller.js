@@ -14,7 +14,7 @@ exports.getMyScore = async (req, res) => {
     res.json({ success: true, ...result });
   } catch (error) {
     console.error("get score error: ", error);
-    res.staus(400).json({ success: false, error: "Failed to compute score" });
+    res.status(400).json({ success: false, error: "Failed to compute score" });
   }
 };
 
@@ -35,7 +35,7 @@ exports.getAllScores = async (req, res) => {
             id: student.id,
             name: student.name,
             email: student.email,
-            currentTier: student.currentTier,
+            currentTier: student.trustTier,
           },
           ...result,
         };

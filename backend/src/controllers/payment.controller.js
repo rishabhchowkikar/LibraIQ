@@ -40,6 +40,7 @@ const completeFinePayment = async ({
 
   // send receipt email
 
+  // ✅ Changed to console.error so it's visible
   await sendPaymentReceiptEmail({
     student,
     amount,
@@ -47,7 +48,11 @@ const completeFinePayment = async ({
     method,
     fineCount: fineIds.length,
     allCleared: cleared,
-  }).catch((err) => console.warn("Receipt email failed:", err.message));
+  }).catch((err) => {
+    console.error("❌ Receipt email FAILED:", err.message);
+    console.error("❌ Student:", student.email);
+    console.error("❌ Full error:", err);
+  });
 
   // in app notification
   await createNotification({

@@ -1,4 +1,4 @@
-const nodemailer = require("nodemailer");
+const axios = require("axios");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -9,22 +9,19 @@ const sendEmailWithDelay = async (emailFn, delayMs = 1200) => {
   return result;
 };
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || "587"),
-  secure: process.env.EMAIL_SECURE === "true",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  family: 4, // Force IPv4
-});
-
-//  Verify connection on startup
+// ✅ Simple connection check
 const verifyEmailConnection = async () => {
   try {
-    await transporter.verify();
+    if (!process.env.BREVO_API_KEY) {
+      console.warn("⚠️  Email service not connected: BREVO_API_KEY not set");
+      return false;
+    }
+    if (!process.env.EMAIL_FROM_ADDRESS) {
+      console.warn(
+        "⚠️  Email service not connected: EMAIL_FROM_ADDRESS not set",
+      );
+      return false;
+    }
     console.log("📧 Email service connected successfully");
     return true;
   } catch (error) {
@@ -33,22 +30,43 @@ const verifyEmailConnection = async () => {
   }
 };
 
-// Base email wrapper
+// ─── Base email sender via Brevo HTTP API ─────────────────────
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    const recipient = process.env.DEV_EMAIL_OVERRIDE;
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: recipient,
-      subject: `[DEV → ${to}] ${subject}`,
-      html,
-    });
+    const recipient = process.env.DEV_EMAIL_OVERRIDE || to;
+    const emailSubject = process.env.DEV_EMAIL_OVERRIDE
+      ? `[DEV → ${to}] ${subject}`
+      : subject;
 
-    console.log(`📧 Email sent to ${to}: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: {
+          name: "LibraIQ Library",
+          email: process.env.EMAIL_FROM_ADDRESS,
+        },
+        to: [{ email: recipient }],
+        subject: emailSubject,
+        htmlContent: html,
+      },
+      {
+        headers: {
+          accept: "application/json",
+          "api-key": process.env.BREVO_API_KEY,
+          "content-type": "application/json",
+        },
+        timeout: 10000, // 10 second timeout
+      },
+    );
+
+    console.log(
+      `📧 Email sent to ${recipient} (for: ${to}): ${response.data.messageId}`,
+    );
+    return { success: true, messageId: response.data.messageId };
   } catch (error) {
-    console.error(`❌ Email failed to ${to}:`, error.message);
-    return { success: false, error: error.message };
+    const errMsg = error.response?.data?.message || error.message;
+    console.error(`❌ Email failed to ${to}:`, errMsg);
+    return { success: false, error: errMsg };
   }
 };
 

@@ -12,6 +12,7 @@ const fineRoutes = require("./routes/fine.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const scoreRoutes = require("../src/routes/score.routes");
+const aiRoutes = require("./routes/ai.routes");
 
 const { initCronjobs } = require("./jobs/cron");
 const { verifyEmailConnection } = require("./services/email.service");
@@ -49,6 +50,7 @@ app.use("/api/fines", fineRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/scores", scoreRoutes);
+app.use("/api/ai", aiRoutes);
 
 // health
 app.get("/health", async (req, res) => {

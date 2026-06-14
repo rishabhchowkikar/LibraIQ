@@ -136,6 +136,63 @@ if (process.env.NODE_ENV === "development") {
       }
     },
   );
+  if (process.env.NODE_ENV === "development") {
+    // Test admin overdue report email
+    fineRouter.post(
+      "/test/email/admin-report",
+      authenticate,
+      requireRole("ADMIN"),
+      async (req, res) => {
+        try {
+          const prisma = require("../config/database");
+          const {
+            sendAdminOverdueReport,
+          } = require("../services/email.service");
+
+          // Fetch real admins from DB
+          const admins = await prisma.user.findMany({
+            where: { role: "ADMIN", isActive: true },
+            select: { email: true, name: true },
+          });
+
+          // Fetch real overdue loans from DB
+          const overdueLoans = await prisma.loan.findMany({
+            where: { status: "OVERDUE" },
+            include: {
+              student: { select: { name: true, email: true } },
+              book: { select: { title: true, author: true } },
+              fines: { where: { paidAt: null } },
+            },
+          });
+
+          const totalFines = overdueLoans.reduce(
+            (sum, loan) => sum + loan.fines.reduce((s, f) => s + f.amount, 0),
+            0,
+          );
+
+          // Send to each admin
+          for (const admin of admins) {
+            await sendAdminOverdueReport({
+              adminEmail: admin.email,
+              overdueLoans,
+              totalFines,
+            });
+          }
+
+          res.json({
+            success: true,
+            message: `Admin report sent to ${admins.length} admin(s)`,
+            sentTo: admins.map((a) => a.email),
+            overdueLoanCount: overdueLoans.length,
+            totalFines,
+            redirectedTo: process.env.DEV_EMAIL_OVERRIDE,
+          });
+        } catch (error) {
+          res.status(500).json({ success: false, error: error.message });
+        }
+      },
+    );
+  }
 }
 
 module.exports = fineRouter;

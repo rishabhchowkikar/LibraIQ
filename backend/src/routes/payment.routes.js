@@ -56,4 +56,30 @@ paymentRouter.get(
   paymentController.getAllPayments,
 );
 
+if (process.env.NODE_ENV === "development") {
+  paymentRouter.post("/test/email", async (req, res) => {
+    try {
+      const {
+        sendPaymentReceiptEmail,
+      } = require("../services/payment-email.service");
+
+      await sendPaymentReceiptEmail({
+        student: {
+          name: "Test Student",
+          email: "vikram@student.com",
+        },
+        amount: 40,
+        receipt: `LIQ-TEST-${Date.now()}`,
+        method: "ONLINE",
+        fineCount: 1,
+        allCleared: true,
+      });
+
+      res.json({ success: true, message: "Check Gmail!" });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+}
+
 module.exports = paymentRouter;

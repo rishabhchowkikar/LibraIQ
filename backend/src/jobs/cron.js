@@ -6,7 +6,6 @@ const {
 const { sendAdminOverdueReport, sleep } = require("../services/email.service");
 const { recomputeAllScores } = require("../services/reader-score.service");
 const prisma = require("../config/database");
-
 const initCronjobs = () => {
   console.log("⏰ Initializing cron jobs...");
 
@@ -33,7 +32,7 @@ const initCronjobs = () => {
   });
 
   // ─── Admin Overdue Report — Every day at 9 AM ─────────────
-  cron.schedule("0 9 * * *", async () => {
+  cron.schedule("10 10 * * *", async () => {
     console.log("\n📊 [CRON] Generating admin overdue report...");
     try {
       // Get all admins
@@ -76,7 +75,7 @@ const initCronjobs = () => {
   });
 
   // ─── Reader Score Recomputation — Every Sunday midnight ────
-  cron.schedule("0 0 * * 0", async () => {
+  cron.schedule("10 0 * * 0", async () => {
     console.log("\n🧠 [CRON] Sunday — Recomputing all Reader Scores...");
     try {
       const result = await recomputeAllScores();
@@ -88,9 +87,9 @@ const initCronjobs = () => {
 
   console.log("✅ Cron jobs initialized:");
   console.log("   • Fine accrual    → daily at midnight");
-  console.log("   • Due reminders   → daily at 9 AM");
-  console.log("   • Admin report    → daily at 9 AM");
-  console.log("   • Reader Score    → every Sunday midnight");
+  console.log("   • Due reminders   → daily at 9:00");
+  console.log("   • Admin report    → daily at 10:10");
+  console.log("   • Reader Score    → every Sunday at 12:10");
 };
 
 module.exports = { initCronjobs };
