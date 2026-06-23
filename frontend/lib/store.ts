@@ -21,7 +21,7 @@ interface AuthState {
     _isRestoring: boolean;
     setHasHydrated: (state: boolean) => void;
     setAuth: (user: User, token: string) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
     restoreSession: () => Promise<boolean>;
 }
 
@@ -55,7 +55,15 @@ export const useAuthStore = create<AuthState>()(
                 setFrontendCookies(user.role);
                 set({ user, accessToken: token, isAuthenticated: true });
             },
-            logout: () => {
+            logout: async () => {
+                try {
+                    await axios.post(`${BASE_URL}/auth/logout`,
+                        {},
+                        { withCredentials: true }
+                    );
+                } catch (error) {
+
+                }
                 localStorage.removeItem('accessToken');
                 clearFrontendCookies();
                 set({ user: null, accessToken: null, isAuthenticated: false });

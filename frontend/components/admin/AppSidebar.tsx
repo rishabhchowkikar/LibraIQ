@@ -25,8 +25,8 @@ const navigation = [
     { title: 'Books', url: '/admin/books', icon: Library },
     { title: 'Loans', url: '/admin/loans', icon: FileText },
     { title: 'Fines', url: '/admin/fines', icon: Receipt },
-    { title: 'Scores', url: '/admin/scores', icon: TrendingUp },
     { title: 'Payments', url: '/admin/payments', icon: CreditCard },
+    { title: 'Scores', url: '/admin/scores', icon: TrendingUp },
 ];
 
 export function AdminSidebar() {

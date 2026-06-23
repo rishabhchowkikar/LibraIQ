@@ -1,24 +1,79 @@
 const axios = require("axios");
 const prisma = require("../config/database");
+const { getRedis } = require("../config/redis");
 
-// ─── Simple in-memory cache ───────────────────────────────────
-const cache = new Map();
+const memoryCache = new Map();
 
-const getCached = (key) => {
-  const item = cache.get(key);
+// const getCached = (key) => {
+//   const item = cache.get(key);
+//   if (!item) return null;
+//   if (Date.now() > item.expiresAt) {
+//     cache.delete(key);
+//     return null;
+//   }
+//   return item.data;
+// };
+
+// ─── getCached: Redis first, memory fallback ──────────────────
+const getCached = async (key) => {
+  try {
+    const redis = getRedis();
+    if (redis) {
+      const value = await redis.get(key);
+      if (value) {
+        console.log(`🔴 Cache HIT (Redis): ${key}`);
+        return typeof value === "string" ? JSON.parse(value) : value;
+      }
+      return null;
+    }
+  } catch (error) {
+    console.warn("Redis get failed, falling back to memory:", error.message);
+  }
+
+  // memory fallback
+  const item = memoryCache.get(key);
   if (!item) return null;
   if (Date.now() > item.expiresAt) {
-    cache.delete(key);
+    memoryCache.delete(key);
     return null;
   }
+  console.log(`💾 Cache HIT (Memory): ${key}`);
   return item.data;
 };
 
-const setCache = (key, data, ttlHours = 24) => {
-  cache.set(key, {
+// ─── setCache: Redis first, memory fallback ───────────────────
+const setCache = async (key, data, ttlHours = 24) => {
+  try {
+    const redis = getRedis();
+    if (redis) {
+      const ttlSeconds = ttlHours * 60 * 60;
+      await redis.setex(key, ttlSeconds, JSON.stringify(data));
+      console.log(`🔴 Cache SET (Redis): ${key} TTL: ${ttlHours}h`);
+      return;
+    }
+  } catch (error) {
+    console.warn("Redis set failed, falling back to memory:", error.message);
+  }
+  memoryCache.set(key, {
     data,
     expiresAt: Date.now() + ttlHours * 60 * 60 * 1000,
   });
+
+  console.log(`💾 Cache SET (Memory): ${key} TTL: ${ttlHours}h`);
+};
+
+// ─── deleteCache: Redis + memory ──────────────────────────────
+const deleteCache = async (key) => {
+  try {
+    const redis = getRedis();
+    if (redis) {
+      await redis.del(key);
+      console.log(`🔴 Cache DELETED (Redis): ${key}`);
+    }
+  } catch (error) {
+    console.warn("Redis delete failed:", error.message);
+  }
+  memoryCache.delete(key);
 };
 
 // ─── Ask Groq helper ──────────────────────────────────────────
@@ -70,7 +125,7 @@ const parseGroqJSON = (text) => {
 // ═══════════════════════════════════════════════════════════════
 const getBookRecommendations = async (studentId) => {
   const cacheKey = `recommendations:${studentId}`;
-  const cached = getCached(cacheKey);
+  const cached = await getCached(cacheKey);
   if (cached) return { ...cached, fromCache: true };
 
   const student = await prisma.user.findUnique({
@@ -171,7 +226,7 @@ Respond ONLY with valid JSON, no extra text:
     };
   }
 
-  setCache(cacheKey, parsed, 24);
+  await setCache(cacheKey, parsed, 24);
   return { ...parsed, fromCache: false };
 };
 
@@ -180,7 +235,7 @@ Respond ONLY with valid JSON, no extra text:
 // ═══════════════════════════════════════════════════════════════
 const getScoreExplanation = async (studentId, scoreData) => {
   const cacheKey = `score-explanation:${studentId}:${scoreData.score}`;
-  const cached = getCached(cacheKey);
+  const cached = await getCached(cacheKey);
   if (cached) return { ...cached, fromCache: true };
 
   const student = await prisma.user.findUnique({
@@ -232,7 +287,7 @@ Respond ONLY with valid JSON:
   const parsed = parseGroqJSON(response);
   if (!parsed) return { ...fallback, fromCache: false };
 
-  setCache(cacheKey, parsed, 12);
+  await setCache(cacheKey, parsed, 12);
   return { ...parsed, fromCache: false };
 };
 
@@ -241,7 +296,7 @@ Respond ONLY with valid JSON:
 // ═══════════════════════════════════════════════════════════════
 const getGenreDNA = async (studentId) => {
   const cacheKey = `genre-dna:${studentId}`;
-  const cached = getCached(cacheKey);
+  const cached = await getCached(cacheKey);
   if (cached) return { ...cached, fromCache: true };
 
   const student = await prisma.user.findUnique({
@@ -332,7 +387,7 @@ Respond ONLY with valid JSON:
   }
 
   const result = { ...parsed, genreBreakdown };
-  setCache(cacheKey, result, 168);
+  await setCache(cacheKey, result, 168);
   return { ...result, fromCache: false };
 };
 
@@ -341,7 +396,7 @@ Respond ONLY with valid JSON:
 // ═══════════════════════════════════════════════════════════════
 const getStudentSummary = async (studentId) => {
   const cacheKey = `student-summary:${studentId}`;
-  const cached = getCached(cacheKey);
+  const cached = await getCached(cacheKey);
   if (cached) return { ...cached, fromCache: true };
 
   const student = await prisma.user.findUnique({
@@ -425,7 +480,7 @@ Respond ONLY with valid JSON:
   const parsed = parseGroqJSON(response);
   if (!parsed) return { ...fallback, fromCache: false };
 
-  setCache(cacheKey, parsed, 24);
+  await setCache(cacheKey, parsed, 24);
   return { ...parsed, fromCache: false };
 };
 
@@ -434,4 +489,5 @@ module.exports = {
   getScoreExplanation,
   getGenreDNA,
   getStudentSummary,
+  deleteCache,
 };

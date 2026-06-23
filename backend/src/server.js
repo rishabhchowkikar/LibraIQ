@@ -16,6 +16,7 @@ const aiRoutes = require("./routes/ai.routes");
 
 const { initCronjobs } = require("./jobs/cron");
 const { verifyEmailConnection } = require("./services/email.service");
+const { verifyRedisConnection } = require("./config/redis");
 
 const app = express();
 
@@ -108,6 +109,7 @@ app.listen(PORT, async () => {
 
   // initial email service
   await verifyEmailConnection();
+  await verifyRedisConnection();
 
   // initialize corn jobs
   initCronjobs();

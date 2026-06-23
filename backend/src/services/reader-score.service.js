@@ -329,4 +329,5 @@ module.exports = {
   computeStudentScore,
   recomputeAllScores,
   getTierFromScore,
+  sendTierChangeEmail,
 };

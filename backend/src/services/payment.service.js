@@ -65,9 +65,7 @@ const verifySignature = ({ orderId, paymentId, signature }) => {
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
     .update(body)
     .digest("hex");
-
-  // return expected === signature;
-  return true;
+  return expected === signature;
 };
 
 // verify webhook signature

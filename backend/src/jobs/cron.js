@@ -32,7 +32,7 @@ const initCronjobs = () => {
   });
 
   // ─── Admin Overdue Report — Every day at 9 AM ─────────────
-  cron.schedule("10 10 * * *", async () => {
+  cron.schedule("10 9 * * *", async () => {
     console.log("\n📊 [CRON] Generating admin overdue report...");
     try {
       // Get all admins

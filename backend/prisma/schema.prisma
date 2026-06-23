@@ -55,7 +55,6 @@ enum NotificationChannel {
   BOTH
 }
 
-// Phase 2.5 — Payment Gateway
 enum PaymentMethod {
   ONLINE
   CASH
@@ -70,27 +69,36 @@ enum PaymentStatus {
   REFUNDED
 }
 
+// ✅ NEW — Phase 5C
+enum BookRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ===================================================
 // MODELS
 // ===================================================
 
 model User {
-  id          String    @id @default(uuid())
-  name        String
-  email       String    @unique
-  password    String
-  role        Role      @default(STUDENT)
-  isActive    Boolean   @default(true)
-  trustTier   TrustTier @default(BRONZE)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(STUDENT)
+  isActive  Boolean   @default(true)
+  trustTier TrustTier @default(BRONZE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
   loans         Loan[]
   fines         Fine[]
   reservations  Reservation[]
   notifications Notification[]
-  payments      Payment[]       // Phase 2.5
+  payments      Payment[]
+  bookRequests  BookRequest[]  // ✅ NEW — Phase 5C
+  auditLogs     AuditLog[]    // ✅ NEW — Phase 5B
 
   @@map("users")
 }
@@ -108,7 +116,7 @@ model Book {
   language        String   @default("English")
   publisher       String?
   year            Int?
-  price           Float?   // Phase 2.5 — used for lost book replacement cost
+  price           Float?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -130,8 +138,8 @@ model Loan {
   extendedCount Int        @default(0)
 
   // Relations
-  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  book    Book  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book    Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
   fines   Fine[]
 
   @@index([studentId])
@@ -141,16 +149,16 @@ model Loan {
 }
 
 model Fine {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   loanId        String
   studentId     String
-  amount        Float     @default(0)
+  amount        Float          @default(0)
   reason        String
   paidAt        DateTime?
-  waivedBy      String?   // Admin user ID who waived it
-  paymentId     String?   // Phase 2.5 — which Payment record cleared this fine
-  paymentMethod String?   // Phase 2.5 — ONLINE | CASH | LINK | WAIVED
-  createdAt     DateTime  @default(now())
+  waivedBy      String?
+  paymentId     String?
+  paymentMethod PaymentMethod? // ✅ FIXED — was String?, now uses enum
+  createdAt     DateTime       @default(now())
 
   // Relations
   loan    Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
@@ -196,21 +204,20 @@ model Notification {
   @@map("notifications")
 }
 
-// Phase 2.5 — Payment Gateway
 model Payment {
   id            String        @id @default(uuid())
-  receipt       String        @unique   // e.g. LIQ-17834621-4821
-  orderId       String?       @unique   // Razorpay order ID (online payments)
-  paymentId     String?                 // Razorpay payment ID (set after success)
-  linkId        String?                 // Razorpay payment link ID (admin-generated)
+  receipt       String        @unique
+  orderId       String?       @unique
+  paymentId     String?
+  linkId        String?
   studentId     String
-  amount        Float                   // Total ₹ being paid
+  amount        Float
   method        PaymentMethod @default(ONLINE)
   status        PaymentStatus @default(CREATED)
-  fineIds       Json                    // String[] — array of fine IDs being paid
-  failureReason String?                 // Set when status = FAILED
-  createdBy     String?                 // Admin ID for CASH and LINK payments
-  paidAt        DateTime?               // Set when status = SUCCESS
+  fineIds       Json
+  failureReason String?
+  createdBy     String?
+  paidAt        DateTime?
   createdAt     DateTime      @default(now())
 
   // Relations
@@ -220,4 +227,48 @@ model Payment {
   @@index([status])
   @@index([orderId])
   @@map("payments")
+}
+
+// ✅ NEW — Phase 5C: Book Request System
+model BookRequest {
+  id         String            @id @default(uuid())
+  studentId  String
+  title      String
+  author     String
+  genre      String?
+  reason     String?
+  status     BookRequestStatus @default(PENDING)
+  adminNote  String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime          @default(now())
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+  @@map("book_requests")
+}
+
+// ✅ NEW — Phase 5B: Audit Logs
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  actorId    String
+  actorRole  String
+  targetType String
+  targetId   String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
