@@ -1,5 +1,5 @@
 const prisma = require("../config/database");
-
+const { createLog } = require("../services/audit.service");
 // Helper: Calculate due date based on trust tier
 const calculateDueDate = (trustTier) => {
   const daysMap = {
@@ -132,6 +132,19 @@ exports.issueBook = async (req, res, next) => {
       }),
     ]);
 
+    await createLog({
+      action: "LOAN_ISSUED",
+      actorId: req.user.userId,
+      actorRole: "ADMIN",
+      targetType: "LOAN",
+      targetId: loan.id,
+      details: {
+        bookTitle: loan.book.title,
+        studentName: loan.student.name,
+      },
+      ipAddress: req.ip,
+    });
+
     res.status(201).json({
       success: true,
       message: "Book issued successfully",
@@ -220,6 +233,20 @@ exports.returnBook = async (req, res) => {
         },
       }),
     ]);
+
+    await createLog({
+      action: "LOAN_RETURNED",
+      actorId: req.user.userId,
+      actorRole: req.user.role,
+      targetType: "LOAN",
+      targetId: loanId,
+      details: {
+        bookTitle: loan.book.title,
+        wasOverdue: isOverdue,
+        fineAmount: fine ? fine.amount : 0,
+      },
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({
       success: true,
@@ -456,6 +483,21 @@ exports.markAsLost = async (req, res, next) => {
       type: "GENERAL",
       message: `"${loan.book.title}" has been marked as lost. A replacement fine of ₹${cost} has been added to your account.`,
     });
+
+    await createLog({
+      action: "LOAN_MARKED_LOST",
+      actorId: req.user.userId,
+      actorRole: "ADMIN",
+      targetType: "LOAN",
+      targetId: loanId,
+      details: {
+        bookTitle: loan.book.title,
+        studentName: loan.student.name,
+        replacementCost: cost,
+      },
+      ipAddress: req.ip,
+    });
+
     res.json({
       success: true,
       message: `Loan marked as lost. Replacement fine of ${cost} applied.`,

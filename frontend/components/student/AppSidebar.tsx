@@ -29,6 +29,7 @@ const navigation = [
     { title: 'My Score', url: '/student/score', icon: TrendingUp },
     { title: "Payments", url: '/student/payments', icon: CreditCard },
     { title: 'Notifications', url: '/student/notifications', icon: Bell },
+    { title: 'Requests', url: '/student/book-requests', icon: BookMarked },
 ];
 
 const tierConfig: Record<string, { label: string; class: string }> = {

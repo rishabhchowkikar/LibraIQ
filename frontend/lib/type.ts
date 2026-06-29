@@ -44,3 +44,38 @@ export interface Fine {
     waivedBy?: string;
     createdAt: string;
 }
+
+export interface BookRequest {
+    id: string;
+    title: string;
+    author: string;
+    genre?: string;
+    reason?: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    adminNote?: string;
+    reviewedAt?: string;
+    createdAt: string;
+    student: {
+        id: string;
+        name: string;
+        email: string;
+        trustTier: string;
+    };
+}
+
+export interface AuditLog {
+    id: string;
+    action: string;
+    actorId: string;
+    actorRole: 'ADMIN' | 'STUDENT';
+    targetType: string;
+    targetId: string;
+    details: Record<string, unknown> | null;
+    ipAddress?: string;
+    createdAt: string;
+    actor: {
+        name: string;
+        email: string;
+        role: string;
+    };
+}

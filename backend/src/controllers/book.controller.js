@@ -1,4 +1,5 @@
 const prisma = require("../config/database");
+const { createLog } = require("../services/audit.service");
 
 // get all books
 exports.getAllBooks = async (req, res, next) => {
@@ -122,6 +123,20 @@ exports.createBook = async (req, res, next) => {
       },
     });
 
+    await createLog({
+      action: "BOOK_ADDED",
+      actorId: req.user.userId,
+      actorRole: "ADMIN",
+      targetType: "BOOK",
+      targetId: book.id,
+      details: {
+        title: book.title,
+        author: book.author,
+        genre: book.genre,
+      },
+      ipAddress: req.ip,
+    });
+
     res.status(201).json({
       success: true,
       message: "Book Saved Successfully",
@@ -157,6 +172,19 @@ exports.updateBook = async (req, res, next) => {
     const book = await prisma.book.update({
       where: { id },
       data: { ...updatedData },
+    });
+
+    await createLog({
+      action: "BOOK_EDITED",
+      actorId: req.user.userId,
+      actorRole: "ADMIN",
+      targetType: "BOOK",
+      targetId: id,
+      details: {
+        title: book.title,
+        updatedFields: Object.keys(req.body),
+      },
+      ipAddress: req.ip,
     });
 
     res.json({
@@ -200,6 +228,19 @@ exports.deleteBook = async (req, res, next) => {
 
     await prisma.book.delete({
       where: { id },
+    });
+
+    await createLog({
+      action: "BOOK_DELETED",
+      actorId: req.user.userId,
+      actorRole: "ADMIN",
+      targetType: "BOOK",
+      targetId: id,
+      details: {
+        title: bookToDelete?.title,
+        author: bookToDelete?.author,
+      },
+      ipAddress: req.ip,
     });
 
     res.json({

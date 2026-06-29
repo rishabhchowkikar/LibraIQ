@@ -13,6 +13,9 @@ const paymentRoutes = require("./routes/payment.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const scoreRoutes = require("../src/routes/score.routes");
 const aiRoutes = require("./routes/ai.routes");
+const analyticRoutes = require("./routes/analytics.routes");
+const auditRoutes = require("./routes/audit.routes");
+const bookRequestRoutes = require("./routes/book-request.routes");
 
 const { initCronjobs } = require("./jobs/cron");
 const { verifyEmailConnection } = require("./services/email.service");
@@ -52,6 +55,9 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/scores", scoreRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/analytics", analyticRoutes);
+app.use("/api/audit-logs", auditRoutes);
+app.use("/api/book-requests", bookRequestRoutes);
 
 // health
 app.get("/health", async (req, res) => {

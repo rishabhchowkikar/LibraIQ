@@ -4,6 +4,7 @@ const {
   sendFineWaivedEmail,
   sendFinePaidEmail,
 } = require("../services/email.service");
+const { createLog } = require("../services/audit.service");
 
 // GET /api/fines — All fines (admin)
 exports.getAllFines = async (req, res) => {
@@ -177,6 +178,21 @@ exports.markAsPaid = async (req, res) => {
 
     console.log(`💵 Cash payment recorded: ${receipt} — ₹${fine.amount}`);
 
+    await createLog({
+      action: "FINE_PAID",
+      actorId: adminId,
+      actorRole: "ADMIN",
+      targetType: "FINE",
+      targetId: fine.id,
+      details: {
+        amount: fine.amount,
+        method: "CASH",
+        receipt,
+        studentName: fine.student.name,
+      },
+      ipAddress: req.ip,
+    });
+
     res.json({
       success: true,
       message: `₹${fine.amount} cash payment recorded successfully`,
@@ -247,6 +263,20 @@ exports.waiveFine = async (req, res) => {
       userId: fine.studentId,
       type: "FINE_ALERT",
       message: `Your fine of ₹${fine.amount} for "${fine.loan.book.title}" has been waived. Reason: ${reason}`,
+    });
+
+    await createLog({
+      action: "FINE_WAIVED",
+      actorId: adminId,
+      actorRole: "ADMIN",
+      targetType: "FINE",
+      targetId: fine.id,
+      details: {
+        amount: fine.amount,
+        reason,
+        studentName: fine.student.name,
+      },
+      ipAddress: req.ip,
     });
 
     res.json({

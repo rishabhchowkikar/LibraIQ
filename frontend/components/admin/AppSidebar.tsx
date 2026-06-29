@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
@@ -18,6 +19,7 @@ import {
 import {
     LayoutDashboard, Library, FileText, CreditCard,
     BookOpen, LogOut, ChevronUp, Shield, Receipt, TrendingUp,
+    BarChart3, ClipboardList, BookMarked,
 } from 'lucide-react';
 
 const navigation = [
@@ -27,12 +29,22 @@ const navigation = [
     { title: 'Fines', url: '/admin/fines', icon: Receipt },
     { title: 'Payments', url: '/admin/payments', icon: CreditCard },
     { title: 'Scores', url: '/admin/scores', icon: TrendingUp },
+    { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
+    { title: 'Audit Logs', url: '/admin/audit-logs', icon: ClipboardList },
+    { title: 'Requests', url: '/admin/book-requests', icon: BookMarked },
 ];
 
 export function AdminSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { user, logout } = useAuthStore();
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        api.get('/book-requests')
+            .then(({ data }) => { if (data.success) setPendingCount(data.pendingCount ?? 0); })
+            .catch(() => {});
+    }, []);
 
     const handleLogout = async () => {
         try { await api.post('/auth/logout'); } catch { }
@@ -81,6 +93,11 @@ export function AdminSidebar() {
                                         <Link href={item.url}>
                                             <item.icon className="w-4 h-4" />
                                             <span>{item.title}</span>
+                                            {item.title === 'Requests' && pendingCount > 0 && (
+                                                <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 flex items-center justify-center text-[10px] bg-red-500 text-white border-0">
+                                                    {pendingCount > 9 ? '9+' : pendingCount}
+                                                </Badge>
+                                            )}
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
