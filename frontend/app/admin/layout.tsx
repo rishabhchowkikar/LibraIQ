@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -32,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!_hasHydrated || _isRestoring) return (
         <div className="flex items-center justify-center min-h-screen">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -52,10 +53,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <span className="text-muted-foreground">—</span>
                                 <span className="font-semibold">{user.name}</span>
                             </div>
-                            <div className="ml-auto">
+                            <div className="ml-auto flex items-center gap-3">
                                 <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 text-xs">
                                     Administrator
                                 </Badge>
+                                <ThemeToggle />
                             </div>
                         </header>
                         <main className="flex-1 p-6">

@@ -74,14 +74,14 @@ function ScoreGauge({ score, tier }: { score: number; tier: string }) {
 
     return (
         <svg viewBox="0 0 120 120" className="w-28 h-28">
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f3f4f6" strokeWidth="10"
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line)" strokeWidth="10"
                 strokeDasharray={`${circumference * 0.75} ${circumference}`}
                 strokeLinecap="round" transform={`rotate(135, ${cx}, ${cy})`} />
             <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="10"
                 strokeDasharray={`${filled} ${circumference}`}
                 strokeLinecap="round" transform={`rotate(135, ${cx}, ${cy})`} />
             <text x={cx} y={cy - 3} textAnchor="middle" fill={color} fontSize="22" fontWeight="bold">{score}</text>
-            <text x={cx} y={cy + 13} textAnchor="middle" fill="#9ca3af" fontSize="10">/ 100</text>
+            <text x={cx} y={cy + 13} textAnchor="middle" fill="var(--ink-3)" fontSize="10">/ 100</text>
         </svg>
     );
 }
@@ -155,12 +155,12 @@ export default function StudentDashboard() {
 
     const getStatusBadge = (loan: Loan) => {
         if (loan.status === 'OVERDUE') {
-            return { color: 'border-red-200 bg-red-50', text: 'text-red-700', badge: 'bg-red-600 text-white' };
+            return { color: 'border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900', text: 'text-red-700 dark:text-red-400', badge: 'bg-red-600 text-white' };
         }
         const daysLeft = getDaysUntilDue(loan.dueDate);
-        if (daysLeft <= 3) return { color: 'border-orange-200 bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-600 text-white' };
-        if (daysLeft <= 7) return { color: 'border-yellow-200 bg-yellow-50', text: 'text-yellow-700', badge: 'bg-yellow-600 text-white' };
-        return { color: 'border-green-200 bg-green-50', text: 'text-green-700', badge: 'bg-green-600 text-white' };
+        if (daysLeft <= 3) return { color: 'border-orange-200 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-900', text: 'text-orange-700 dark:text-orange-400', badge: 'bg-orange-600 text-white' };
+        if (daysLeft <= 7) return { color: 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-900', text: 'text-yellow-700 dark:text-yellow-400', badge: 'bg-yellow-600 text-white' };
+        return { color: 'border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-900', text: 'text-green-700 dark:text-green-400', badge: 'bg-green-600 text-white' };
     };
 
     if (loading) return <StudentDashboardSkeleton />;
@@ -187,95 +187,95 @@ export default function StudentDashboard() {
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-linear-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                        <BookOpen className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 bg-primary rounded-md flex items-center justify-center shrink-0">
+                        <BookOpen className="w-6 h-6 text-primary-foreground" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
+                        <h1 className="text-3xl font-bold text-foreground">
                             Welcome back, {user?.name?.split(' ')[0]}
                         </h1>
-                        <p className="text-gray-600">Here's your reading journey at a glance</p>
+                        <p className="text-muted-foreground">Here's your reading journey at a glance</p>
                     </div>
                 </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div className="bg-card rounded-lg border border-border p-6 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-gray-600">Active Loans</p>
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-blue-600" />
+                        <p className="text-sm font-medium text-muted-foreground">Active Loans</p>
+                        <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-primary" />
                         </div>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900 mb-1">{activeLoans.length}</p>
-                    <p className="text-xs text-gray-500">Currently borrowed</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{activeLoans.length}</p>
+                    <p className="text-xs text-muted-foreground">Currently borrowed</p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div className="bg-card rounded-lg border border-border p-6 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-gray-600">Total Borrowed</p>
-                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <p className="text-sm font-medium text-muted-foreground">Total Borrowed</p>
+                        <div className="w-10 h-10 bg-green-500/10 rounded-md flex items-center justify-center">
                             <TrendingUp className="w-5 h-5 text-green-600" />
                         </div>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900 mb-1">{loans.length}</p>
-                    <p className="text-xs text-gray-500">All-time count</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{loans.length}</p>
+                    <p className="text-xs text-muted-foreground">All-time count</p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div className="bg-card rounded-lg border border-border p-6 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-gray-600">On-Time Rate</p>
-                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <p className="text-sm font-medium text-muted-foreground">On-Time Rate</p>
+                        <div className="w-10 h-10 bg-green-500/10 rounded-md flex items-center justify-center">
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                         </div>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900 mb-1">{onTimeRate}%</p>
-                    <p className="text-xs text-gray-500">Timely returns</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{onTimeRate}%</p>
+                    <p className="text-xs text-muted-foreground">Timely returns</p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div className="bg-card rounded-lg border border-border p-6 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium text-gray-600">Overdue</p>
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <AlertCircle className="w-5 h-5 text-red-600" />
+                        <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+                        <div className="w-10 h-10 bg-destructive/10 rounded-md flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-destructive" />
                         </div>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900 mb-1">{overdueLoans.length}</p>
-                    <p className="text-xs text-gray-500">Past due date</p>
+                    <p className="text-3xl font-bold text-foreground mb-1">{overdueLoans.length}</p>
+                    <p className="text-xs text-muted-foreground">Past due date</p>
                 </div>
             </div>
 
             {/* Reader Score Card */}
             {scoreLoading ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 animate-pulse">
+                <div className="bg-card rounded-lg border border-border p-6 mb-8 animate-pulse">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="h-5 bg-gray-200 rounded w-32" />
-                        <div className="h-4 bg-gray-200 rounded w-24" />
+                        <div className="h-5 bg-muted rounded w-32" />
+                        <div className="h-4 bg-muted rounded w-24" />
                     </div>
                     <div className="flex items-start gap-6">
-                        <div className="w-28 h-28 rounded-full bg-gray-200 shrink-0" />
+                        <div className="w-28 h-28 rounded-full bg-muted shrink-0" />
                         <div className="flex-1 space-y-3">
                             <div className="grid grid-cols-4 gap-3">
-                                {[0, 1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-200 rounded-lg" />)}
+                                {[0, 1, 2, 3].map(i => <div key={i} className="h-14 bg-muted rounded-lg" />)}
                             </div>
-                            <div className="h-3 bg-gray-200 rounded w-full" />
+                            <div className="h-3 bg-muted rounded w-full" />
                             <div className="flex gap-2">
-                                {[0, 1, 2].map(i => <div key={i} className="h-6 bg-gray-200 rounded-md w-20" />)}
+                                {[0, 1, 2].map(i => <div key={i} className="h-6 bg-muted rounded-md w-20" />)}
                             </div>
                         </div>
                     </div>
                 </div>
             ) : scoreData ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                <div className="bg-card rounded-lg border border-border p-6 mb-8">
                     <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-gray-700" />
-                            <h2 className="text-xl font-bold text-gray-900">Reader Score</h2>
+                            <TrendingUp className="w-5 h-5 text-foreground" />
+                            <h2 className="text-xl font-bold text-foreground">Reader Score</h2>
                         </div>
                         <Link
                             href="/student/score"
-                            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
                         >
                             View Full Score <ArrowRight className="w-4 h-4" />
                         </Link>
@@ -297,20 +297,20 @@ export default function StudentDashboard() {
                                     { label: 'On-time', value: scoreData.stats.onTimeReturns },
                                     { label: 'Late', value: scoreData.stats.lateReturns },
                                 ].map(stat => (
-                                    <div key={stat.label} className="text-center bg-gray-50 rounded-lg p-2.5">
-                                        <p className="text-lg font-bold text-gray-900">{stat.value}</p>
-                                        <p className="text-xs text-gray-500">{stat.label}</p>
+                                    <div key={stat.label} className="text-center bg-muted/50 rounded-lg p-2.5">
+                                        <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                                        <p className="text-xs text-muted-foreground">{stat.label}</p>
                                     </div>
                                 ))}
                             </div>
 
                             {scoreData.tier !== 'PLATINUM' && scoreData.nextTier ? (
                                 <div>
-                                    <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                                         <span className="font-medium">Progress to {scoreData.nextTier}</span>
                                         <span>{scoreData.pointsToNextTier} pts needed</span>
                                     </div>
-                                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                                         <div
                                             className={`h-full rounded-full transition-all ${tierInfo.bar}`}
                                             style={{ width: `${tierProgress}%` }}
@@ -327,8 +327,8 @@ export default function StudentDashboard() {
                                         <span
                                             key={item.key}
                                             className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${item.value > 0
-                                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                                : 'bg-red-50 text-red-700 border border-red-200'
+                                                ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900'
+                                                : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900'
                                                 }`}
                                         >
                                             {item.value > 0 ? '+' : ''}{item.value} {item.label}
@@ -342,19 +342,19 @@ export default function StudentDashboard() {
             ) : null}
 
             {/* AI Recommendations */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <div className="bg-card rounded-lg border border-border p-6 mb-8">
                 <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 text-gray-700" />
-                        <h2 className="text-xl font-bold text-gray-900">Recommended for You</h2>
+                        <BookOpen className="w-5 h-5 text-foreground" />
+                        <h2 className="text-xl font-bold text-foreground">Recommended for You</h2>
                     </div>
                     <div className="flex items-center gap-2">
                         {recFromCache && !recLoading && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
                                 Cached
                             </span>
                         )}
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent text-accent-foreground border border-accent">
                             <Sparkles className="w-3 h-3" /> AI Powered
                         </span>
                     </div>
@@ -363,41 +363,41 @@ export default function StudentDashboard() {
                 {recLoading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         {[0, 1, 2].map(i => (
-                            <div key={i} className="rounded-xl border border-gray-200 p-4 animate-pulse">
-                                <div className="h-4 bg-gray-200 rounded w-16 mb-3" />
-                                <div className="h-5 bg-gray-200 rounded w-3/4 mb-1.5" />
-                                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3" />
-                                <div className="h-3 bg-gray-200 rounded w-full mb-1" />
-                                <div className="h-3 bg-gray-200 rounded w-5/6" />
+                            <div key={i} className="rounded-lg border border-border p-4 animate-pulse">
+                                <div className="h-4 bg-muted rounded w-16 mb-3" />
+                                <div className="h-5 bg-muted rounded w-3/4 mb-1.5" />
+                                <div className="h-4 bg-muted rounded w-1/2 mb-3" />
+                                <div className="h-3 bg-muted rounded w-full mb-1" />
+                                <div className="h-3 bg-muted rounded w-5/6" />
                             </div>
                         ))}
                     </div>
                 ) : recommendations.length === 0 ? (
                     <div className="text-center py-10">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <BookOpen className="w-6 h-6 text-gray-400" />
+                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                            <BookOpen className="w-6 h-6 text-muted-foreground" />
                         </div>
-                        <p className="text-gray-500 font-medium text-sm">No recommendations available yet</p>
-                        <p className="text-xs text-gray-400 mt-1">Borrow a few books and we'll personalise picks for you</p>
+                        <p className="text-muted-foreground font-medium text-sm">No recommendations available yet</p>
+                        <p className="text-xs text-muted-foreground mt-1">Borrow a few books and we'll personalise picks for you</p>
                     </div>
                 ) : (
                     <>
                         {recSummary && (
-                            <p className="text-sm text-gray-500 mb-4 italic">{recSummary}</p>
+                            <p className="text-sm text-muted-foreground mb-4 italic">{recSummary}</p>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {recommendations.map((rec) => {
-                                const genreBadge = GENRE_BADGE[rec.genre] || 'bg-gray-100 text-gray-600 border border-gray-200';
+                                const genreBadge = GENRE_BADGE[rec.genre] || 'bg-muted text-muted-foreground border border-border';
                                 return (
-                                    <div key={rec.bookId} className="rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col gap-2">
+                                    <div key={rec.bookId} className="rounded-lg border border-border p-4 hover:bg-muted/30 transition-colors flex flex-col gap-2">
                                         <span className={`self-start inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${genreBadge}`}>
                                             {rec.genre}
                                         </span>
                                         <div>
-                                            <h3 className="font-bold text-gray-900 text-sm leading-tight">{rec.title}</h3>
-                                            <p className="text-xs text-gray-500 mt-0.5">by {rec.author}</p>
+                                            <h3 className="font-bold text-foreground text-sm leading-tight">{rec.title}</h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">by {rec.author}</p>
                                         </div>
-                                        <p className="text-xs text-gray-600 leading-relaxed mt-auto">{rec.reason}</p>
+                                        <p className="text-xs text-muted-foreground leading-relaxed mt-auto">{rec.reason}</p>
                                     </div>
                                 );
                             })}
@@ -405,23 +405,23 @@ export default function StudentDashboard() {
                     </>
                 )}
 
-                <p className="text-xs text-gray-400 mt-4 text-right">✨ AI Powered by Groq</p>
+                <p className="text-xs text-muted-foreground mt-4 text-right">✨ AI Powered by Groq</p>
             </div>
 
             {/* Active Loans */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-card rounded-lg border border-border p-6">
                 <div className="flex items-center gap-2 mb-6">
-                    <BookOpen className="w-5 h-5 text-gray-700" />
-                    <h2 className="text-xl font-bold text-gray-900">Active Loans</h2>
+                    <BookOpen className="w-5 h-5 text-foreground" />
+                    <h2 className="text-xl font-bold text-foreground">Active Loans</h2>
                 </div>
 
                 {activeLoans.length === 0 ? (
                     <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <BookOpen className="w-8 h-8 text-gray-400" />
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                            <BookOpen className="w-8 h-8 text-muted-foreground" />
                         </div>
-                        <p className="text-gray-600 font-medium mb-1">No active loans</p>
-                        <p className="text-sm text-gray-500">Visit the library to borrow your first book!</p>
+                        <p className="text-foreground font-medium mb-1">No active loans</p>
+                        <p className="text-sm text-muted-foreground">Visit the library to borrow your first book!</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -432,14 +432,14 @@ export default function StudentDashboard() {
                             return (
                                 <div
                                     key={loan.id}
-                                    className={`border-2 rounded-xl p-5 ${status.color} hover:shadow-md transition-shadow`}
+                                    className={`border-2 rounded-lg p-5 ${status.color}`}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-gray-900 text-lg mb-1 truncate">
+                                            <h3 className="font-bold text-foreground text-lg mb-1 truncate">
                                                 {loan.book?.title}
                                             </h3>
-                                            <p className="text-sm text-gray-600 mb-4">
+                                            <p className="text-sm text-muted-foreground mb-4">
                                                 by {loan.book?.author}
                                             </p>
 
@@ -464,14 +464,14 @@ export default function StudentDashboard() {
 
                                             {loan.fines && loan.fines.length > 0 && (
                                                 <div className="mt-4 pt-4 border-t border-current/20">
-                                                    <p className="text-sm font-bold text-red-700">
+                                                    <p className="text-sm font-bold text-red-700 dark:text-red-400">
                                                         Fine: ₹{loan.fines.reduce((sum, fine) => sum + fine.amount, 0)}
                                                     </p>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase whitespace-nowrap ${status.badge}`}>
+                                        <span className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase whitespace-nowrap ${status.badge}`}>
                                             {loan.status === 'OVERDUE' ? 'Overdue' : daysLeft === 0 ? 'Due Today' : 'Active'}
                                         </span>
                                     </div>

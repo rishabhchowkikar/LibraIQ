@@ -17,7 +17,7 @@ import {
     DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    LayoutDashboard, BookMarked, BookOpen,
+    LayoutDashboard, BookMarked,
     LogOut, ChevronUp, Award, Receipt, Bell,
     CreditCard, TrendingUp
 } from 'lucide-react';
@@ -32,11 +32,11 @@ const navigation = [
     { title: 'Requests', url: '/student/book-requests', icon: BookMarked },
 ];
 
-const tierConfig: Record<string, { label: string; class: string }> = {
-    BRONZE: { label: '🥉 Bronze', class: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
-    SILVER: { label: '🥈 Silver', class: 'bg-slate-400/20 text-slate-300 border-slate-400/30' },
-    GOLD: { label: '🥇 Gold', class: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-    PLATINUM: { label: '💎 Platinum', class: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+const tierConfig: Record<string, { label: string; dot: string }> = {
+    BRONZE: { label: 'Bronze', dot: 'bg-[var(--bronze)]' },
+    SILVER: { label: 'Silver', dot: 'bg-[var(--silver)]' },
+    GOLD: { label: 'Gold', dot: 'bg-[var(--gold)]' },
+    PLATINUM: { label: 'Platinum', dot: 'bg-[var(--platinum)]' },
 };
 
 export function StudentSidebar() {
@@ -68,14 +68,14 @@ export function StudentSidebar() {
 
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="">
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-md">
-                        <BookOpen className="w-5 h-5 text-primary-foreground" />
+            <SidebarHeader className="px-5 py-5.5 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+                <div className="flex items-center gap-2.75 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
+                    <div className="w-9.5 h-9.5 rounded-md bg-primary flex items-center justify-center shrink-0 font-heading text-lg font-semibold text-primary-foreground">
+                        Li
                     </div>
                     <div className="group-data-[collapsible=icon]:hidden">
-                        <p className="font-bold text-sidebar-foreground text-base">LibraIQ</p>
-                        <p className="text-xs text-sidebar-foreground/50">Student Portal</p>
+                        <p className="font-heading text-sidebar-foreground text-[19px] font-semibold tracking-tight leading-none">LibraIQ</p>
+                        <p className="text-[11px] text-sidebar-foreground/50 mt-1">Student Portal</p>
                     </div>
                 </div>
             </SidebarHeader>
@@ -84,7 +84,7 @@ export function StudentSidebar() {
 
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-sidebar-foreground/40 text-xs uppercase tracking-wider">
+                    <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10.5px] uppercase tracking-[0.14em] font-semibold px-3">
                         Navigation
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -95,13 +95,16 @@ export function StudentSidebar() {
                                         asChild
                                         isActive={pathname === item.url}
                                         tooltip={item.title}
-                                        className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+                                        className="relative text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:font-medium"
                                     >
                                         <Link href={item.url} className="flex items-center gap-2">
-                                            <item.icon className="w-4 h-4" />
+                                            {pathname === item.url && (
+                                                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-0.75 h-4.5 rounded-r-sm bg-primary group-data-[collapsible=icon]:hidden" />
+                                            )}
+                                            <item.icon className="w-4 h-4 shrink-0" />
                                             <span>{item.title}</span>
                                             {item.title === 'Notifications' && unreadCount > 0 && (
-                                                <Badge className="ml-auto h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0">
+                                                <Badge className="ml-auto h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0 group-data-[collapsible=icon]:hidden">
                                                     {unreadCount > 9 ? '9+' : unreadCount}
                                                 </Badge>
                                             )}
@@ -116,17 +119,18 @@ export function StudentSidebar() {
                 <SidebarSeparator />
 
                 <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-                    <SidebarGroupLabel className="text-sidebar-foreground/40 text-xs uppercase tracking-wider">
+                    <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10.5px] uppercase tracking-[0.14em] font-semibold px-3">
                         Your Status
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <div className="px-2 py-1">
-                            <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3 space-y-2">
+                            <div className="rounded-md border border-sidebar-border bg-sidebar-accent/50 p-3 space-y-2">
                                 <div className="flex items-center gap-2">
                                     <Award className="w-4 h-4 text-sidebar-foreground/50" />
                                     <span className="text-xs text-sidebar-foreground/50 font-medium">Trust Tier</span>
                                 </div>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${tier.class}`}>
+                                <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-semibold border border-sidebar-border bg-sidebar font-mono tracking-wide">
+                                    <span className={`w-1.75 h-1.75 rounded-full ${tier.dot}`} />
                                     {tier.label}
                                 </span>
                             </div>
@@ -140,8 +144,8 @@ export function StudentSidebar() {
                     <SidebarMenuItem>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton className="h-auto text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent" tooltip={user?.name}>
-                                    <Avatar className="h-8 w-8 flex-shrink-0">
+                                <SidebarMenuButton className="h-auto py-2.5 group-data-[collapsible=icon]:justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent" tooltip={user?.name}>
+                                    <Avatar className="h-8 w-8 shrink-0">
                                         <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                                             {initials}
                                         </AvatarFallback>

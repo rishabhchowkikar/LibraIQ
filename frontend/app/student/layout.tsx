@@ -7,6 +7,7 @@ import { StudentSidebar } from '@/components/student/AppSidebar';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -31,7 +32,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
     if (!_hasHydrated || _isRestoring) return (
         <div className="flex items-center justify-center min-h-screen">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -49,6 +50,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                             <div className="flex items-center gap-2 text-sm">
                                 <span className="text-muted-foreground">Welcome back,</span>
                                 <span className="font-semibold">{user.name.split(' ')[0]}</span>
+                            </div>
+                            <div className="ml-auto">
+                                <ThemeToggle />
                             </div>
                         </header>
                         <main className="flex-1 p-6">
