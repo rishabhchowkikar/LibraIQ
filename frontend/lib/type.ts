@@ -63,6 +63,88 @@ export interface BookRequest {
     };
 }
 
+export interface Reservation {
+    id: string;
+    studentId: string;
+    bookId: string;
+    reservedAt: string;
+    expiresAt: string;
+    notifiedAt?: string;
+    status: 'PENDING' | 'NOTIFIED' | 'FULFILLED' | 'EXPIRED' | 'CANCELLED';
+    student?: {
+        id: string;
+        name: string;
+        email: string;
+        trustTier: string;
+    };
+    book?: Book;
+}
+
+export interface LoanExtension {
+    id: string;
+    loanId: string;
+    studentId: string;
+    requestedAt: string;
+    newDueDate: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    adminNote?: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    student?: {
+        id: string;
+        name: string;
+        email: string;
+        trustTier: string;
+    };
+    loan?: Loan;
+}
+
+export interface ReadingGoal {
+    id: string;
+    studentId: string;
+    monthlyGoal: number;
+    yearlyGoal: number;
+    updatedAt: string;
+    booksThisMonth: number;
+    monthlyProgress: number;
+    yearlyProgress: number;
+}
+
+export interface Achievement {
+    id: string;
+    studentId: string;
+    type: string;
+    earnedAt: string;
+    seen: boolean;
+    label: string;
+    desc: string;
+    emoji: string;
+}
+
+export interface ReadingStats {
+    totalBooks: number;
+    booksThisYear: number;
+    currentlyReading: {
+        loan: string;
+        title: string;
+        author: string;
+        dueDate: string;
+        daysLeft: number;
+    }[];
+    dueSoon: {
+        loan: string;
+        title: string;
+        author: string;
+        dueDate: string;
+        daysLeft: number;
+    }[];
+    favoriteGenres: { genre: string; count: number }[];
+    readingStreak: number;
+    monthlyStats: { month: string; books: number }[];
+    earlyReturns: number;
+    onTimeRate: number;
+}
+
 export interface AuditLog {
     id: string;
     action: string;

@@ -19,12 +19,15 @@ import {
 import {
     LayoutDashboard, BookMarked,
     LogOut, ChevronUp, Award, Receipt, Bell,
-    CreditCard, TrendingUp
+    CreditCard, TrendingUp, Clock, CalendarClock, Trophy
 } from 'lucide-react';
 
 const navigation = [
     { title: 'Dashboard', url: '/student/dashboard', icon: LayoutDashboard },
     { title: 'My Loans', url: '/student/loans', icon: BookMarked },
+    { title: 'Reservations', url: '/student/reservations', icon: Clock },
+    { title: 'Extensions', url: '/student/extensions', icon: CalendarClock },
+    { title: 'Reading Stats', url: '/student/reading-stats', icon: Trophy },
     { title: 'My Fines', url: '/student/fines', icon: Receipt },
     { title: 'My Score', url: '/student/score', icon: TrendingUp },
     { title: "Payments", url: '/student/payments', icon: CreditCard },
@@ -44,6 +47,7 @@ export function StudentSidebar() {
     const router = useRouter();
     const { user, logout } = useAuthStore();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [notifiedReservations, setNotifiedReservations] = useState(0);
 
     useEffect(() => {
         const fetchUnread = async () => {
@@ -55,6 +59,16 @@ export function StudentSidebar() {
         fetchUnread();
         const interval = setInterval(fetchUnread, 60000);
         return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        api.get('/reservations/my-reservations')
+            .then(({ data }) => {
+                if (data.success) {
+                    setNotifiedReservations(data.reservation.filter((r: { status: string }) => r.status === 'NOTIFIED').length);
+                }
+            })
+            .catch(() => { });
     }, []);
 
     const handleLogout = async () => {
@@ -106,6 +120,11 @@ export function StudentSidebar() {
                                             {item.title === 'Notifications' && unreadCount > 0 && (
                                                 <Badge className="ml-auto h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0 group-data-[collapsible=icon]:hidden">
                                                     {unreadCount > 9 ? '9+' : unreadCount}
+                                                </Badge>
+                                            )}
+                                            {item.title === 'Reservations' && notifiedReservations > 0 && (
+                                                <Badge className="ml-auto h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-green-600 text-white border-0 group-data-[collapsible=icon]:hidden">
+                                                    {notifiedReservations > 9 ? '9+' : notifiedReservations}
                                                 </Badge>
                                             )}
                                         </Link>

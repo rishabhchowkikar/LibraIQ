@@ -19,13 +19,15 @@ import {
 import {
     LayoutDashboard, Library, FileText, CreditCard,
     LogOut, ChevronUp, Shield, Receipt, TrendingUp,
-    BarChart3, ClipboardList, BookMarked,
+    BarChart3, ClipboardList, BookMarked, Clock, CalendarClock,
 } from 'lucide-react';
 
 const navigation = [
     { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
     { title: 'Books', url: '/admin/books', icon: Library },
     { title: 'Loans', url: '/admin/loans', icon: FileText },
+    { title: 'Reservations', url: '/admin/reservations', icon: Clock },
+    { title: 'Extensions', url: '/admin/extensions', icon: CalendarClock },
     { title: 'Fines', url: '/admin/fines', icon: Receipt },
     { title: 'Payments', url: '/admin/payments', icon: CreditCard },
     { title: 'Scores', url: '/admin/scores', icon: TrendingUp },
@@ -39,10 +41,17 @@ export function AdminSidebar() {
     const router = useRouter();
     const { user, logout } = useAuthStore();
     const [pendingCount, setPendingCount] = useState(0);
+    const [pendingExtensions, setPendingExtensions] = useState(0);
 
     useEffect(() => {
         api.get('/book-requests')
             .then(({ data }) => { if (data.success) setPendingCount(data.pendingCount ?? 0); })
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        api.get('/extensions?status=PENDING')
+            .then(({ data }) => { if (data.success) setPendingExtensions(data.pendingCount ?? 0); })
             .catch(() => {});
     }, []);
 
@@ -94,6 +103,11 @@ export function AdminSidebar() {
                                             {item.title === 'Requests' && pendingCount > 0 && (
                                                 <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 flex items-center justify-center text-[10px] bg-red-500 text-white border-0 group-data-[collapsible=icon]:hidden">
                                                     {pendingCount > 9 ? '9+' : pendingCount}
+                                                </Badge>
+                                            )}
+                                            {item.title === 'Extensions' && pendingExtensions > 0 && (
+                                                <Badge className="ml-auto h-5 min-w-5 rounded-full px-1 flex items-center justify-center text-[10px] bg-red-500 text-white border-0 group-data-[collapsible=icon]:hidden">
+                                                    {pendingExtensions > 9 ? '9+' : pendingExtensions}
                                                 </Badge>
                                             )}
                                         </Link>

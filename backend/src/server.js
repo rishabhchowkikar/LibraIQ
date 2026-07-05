@@ -20,6 +20,9 @@ const bookRequestRoutes = require("./routes/book-request.routes");
 const { initCronjobs } = require("./jobs/cron");
 const { verifyEmailConnection } = require("./services/email.service");
 const { verifyRedisConnection } = require("./config/redis");
+const reservationRoutes = require("./routes/reservation.routes");
+const extensionRoutes = require("./routes/extension.routes");
+const readingStatsRoutes = require("./routes/reading-stats.routes");
 
 const app = express();
 
@@ -58,6 +61,9 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/analytics", analyticRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/book-requests", bookRequestRoutes);
+app.use("/api/reservations", reservationRoutes);
+app.use("/api/extensions", extensionRoutes);
+app.use("/api/reading-stats", readingStatsRoutes);
 
 // health
 app.get("/health", async (req, res) => {

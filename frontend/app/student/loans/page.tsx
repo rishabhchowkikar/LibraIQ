@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { Loan } from '@/lib/type';
@@ -12,6 +13,7 @@ import {
     CheckCircle2,
     XCircle,
     AlertCircle,
+    CalendarClock,
 } from 'lucide-react';
 import { StudentLoansSkeleton } from '@/components/shared/DashboardSkeleton';
 
@@ -207,6 +209,15 @@ export default function StudentLoansPage() {
                                             <span className="text-xs text-muted-foreground">
                                                 Extended {loan.extendedCount}x
                                             </span>
+                                        )}
+                                        {loan.status === 'ACTIVE' && loan.extendedCount === 0 && (
+                                            <Link
+                                                href="/student/extensions"
+                                                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                            >
+                                                <CalendarClock className="w-3.5 h-3.5" />
+                                                Request Extension
+                                            </Link>
                                         )}
                                     </div>
                                 </div>

@@ -15,6 +15,11 @@ async function main() {
 
   // ─── STEP 1: Clean existing data (order matters for FK constraints) ──
   console.log("🧹 Cleaning existing data...");
+  // Add these at TOP of cleanup in this order:
+  await prisma.achievement.deleteMany();
+  await prisma.readingGoal.deleteMany();
+  await prisma.loanExtension.deleteMany();
+  // existing ones below stay same:
   await prisma.auditLog.deleteMany(); // ← ADD FIRST
   await prisma.bookRequest.deleteMany(); // ← ADD SECOND
   await prisma.notification.deleteMany();

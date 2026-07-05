@@ -1,5 +1,8 @@
 const prisma = require("../config/database");
 const { createLog } = require("../services/audit.service");
+const {
+  checkAndNotifyReservation,
+} = require("../services/reservation.service");
 // Helper: Calculate due date based on trust tier
 const calculateDueDate = (trustTier) => {
   const daysMap = {
@@ -233,6 +236,8 @@ exports.returnBook = async (req, res) => {
         },
       }),
     ]);
+
+    await checkAndNotifyReservation(loan.bookId);
 
     await createLog({
       action: "LOAN_RETURNED",

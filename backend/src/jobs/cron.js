@@ -5,6 +5,8 @@ const {
 } = require("../services/fine.service");
 const { sendAdminOverdueReport, sleep } = require("../services/email.service");
 const { recomputeAllScores } = require("../services/reader-score.service");
+
+const { expireReservations } = require("../services/reservation.service");
 const prisma = require("../config/database");
 const initCronjobs = () => {
   console.log("⏰ Initializing cron jobs...");
@@ -85,11 +87,23 @@ const initCronjobs = () => {
     }
   });
 
+  // Every hour — check expired reservations
+  cron.schedule("0 * * * *", async () => {
+    console.log("\n⏰ [CRON] Hourly — Checking expired reservations...");
+    try {
+      const count = await expireReservations();
+      if (count > 0) console.log(`✅ ${count} reservation(s) expired`);
+    } catch (error) {
+      console.error("❌ Reservation expiry failed:", error.message);
+    }
+  });
+
   console.log("✅ Cron jobs initialized:");
   console.log("   • Fine accrual    → daily at midnight");
   console.log("   • Due reminders   → daily at 9:00");
   console.log("   • Admin report    → daily at 10:10");
   console.log("   • Reader Score    → every Sunday at 12:10");
+  console.log("   • Reservations    → hourly");
 };
 
 module.exports = { initCronjobs };

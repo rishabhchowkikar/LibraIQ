@@ -32,10 +32,11 @@ enum LoanStatus {
 }
 
 enum ReservationStatus {
-  PENDING
-  FULFILLED
-  EXPIRED
-  CANCELLED
+  PENDING      // waiting for book to become available
+  NOTIFIED     // ✅ NEW — student notified, 48h window started
+  FULFILLED    // student borrowed the book
+  EXPIRED      // 48h window passed
+  CANCELLED    // student cancelled
 }
 
 enum NotificationType {
@@ -69,8 +70,14 @@ enum PaymentStatus {
   REFUNDED
 }
 
-// ✅ NEW — Phase 5C
 enum BookRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ✅ NEW — Phase 6
+enum LoanExtensionStatus {
   PENDING
   APPROVED
   REJECTED
@@ -92,13 +99,16 @@ model User {
   updatedAt DateTime  @updatedAt
 
   // Relations
-  loans         Loan[]
-  fines         Fine[]
-  reservations  Reservation[]
-  notifications Notification[]
-  payments      Payment[]
-  bookRequests  BookRequest[]  // ✅ NEW — Phase 5C
-  auditLogs     AuditLog[]    // ✅ NEW — Phase 5B
+  loans          Loan[]
+  fines          Fine[]
+  reservations   Reservation[]
+  notifications  Notification[]
+  payments       Payment[]
+  bookRequests   BookRequest[]
+  auditLogs      AuditLog[]
+  loanExtensions LoanExtension[] // ✅ NEW — Phase 6
+  readingGoal    ReadingGoal?    // ✅ NEW — Phase 6
+  achievements   Achievement[]   // ✅ NEW — Phase 6
 
   @@map("users")
 }
@@ -138,9 +148,10 @@ model Loan {
   extendedCount Int        @default(0)
 
   // Relations
-  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  book    Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  fines   Fine[]
+  student    User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book       Book            @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  fines      Fine[]
+  extensions LoanExtension[] // ✅ NEW — Phase 6
 
   @@index([studentId])
   @@index([bookId])
@@ -157,7 +168,7 @@ model Fine {
   paidAt        DateTime?
   waivedBy      String?
   paymentId     String?
-  paymentMethod PaymentMethod? // ✅ FIXED — was String?, now uses enum
+  paymentMethod PaymentMethod?
   createdAt     DateTime       @default(now())
 
   // Relations
@@ -175,6 +186,7 @@ model Reservation {
   bookId     String
   reservedAt DateTime          @default(now())
   expiresAt  DateTime
+  notifiedAt DateTime?         // ✅ NEW — when student was notified
   status     ReservationStatus @default(PENDING)
 
   // Relations
@@ -229,7 +241,6 @@ model Payment {
   @@map("payments")
 }
 
-// ✅ NEW — Phase 5C: Book Request System
 model BookRequest {
   id         String            @id @default(uuid())
   studentId  String
@@ -251,7 +262,6 @@ model BookRequest {
   @@map("book_requests")
 }
 
-// ✅ NEW — Phase 5B: Audit Logs
 model AuditLog {
   id         String   @id @default(uuid())
   action     String
@@ -271,4 +281,56 @@ model AuditLog {
   @@index([targetType])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ✅ NEW — Phase 6: Loan Extension System
+model LoanExtension {
+  id          String              @id @default(uuid())
+  loanId      String
+  studentId   String
+  requestedAt DateTime            @default(now())
+  newDueDate  DateTime
+  status      LoanExtensionStatus @default(PENDING)
+  adminNote   String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+
+  // Relations
+  loan    Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([studentId])
+  @@index([status])
+  @@map("loan_extensions")
+}
+
+// ✅ NEW — Phase 6: Reading Goals
+model ReadingGoal {
+  id          String   @id @default(uuid())
+  studentId   String   @unique
+  monthlyGoal Int      @default(2)
+  yearlyGoal  Int      @default(12)
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("reading_goals")
+}
+
+// ✅ NEW — Phase 6: Achievements
+model Achievement {
+  id        String   @id @default(uuid())
+  studentId String
+  type      String
+  earnedAt  DateTime @default(now())
+  seen      Boolean  @default(false)
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, type])
+  @@index([studentId])
+  @@map("achievements")
 }
