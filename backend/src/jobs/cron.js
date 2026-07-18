@@ -87,9 +87,9 @@ const initCronjobs = () => {
     }
   });
 
-  // Every hour — check expired reservations
-  cron.schedule("0 * * * *", async () => {
-    console.log("\n⏰ [CRON] Hourly — Checking expired reservations...");
+  // Every 6 hours — check expired reservations
+  cron.schedule("0 */6 * * *", async () => {
+    console.log("\n⏰ [CRON] Every 6h — Checking expired reservations...");
     try {
       const count = await expireReservations();
       if (count > 0) console.log(`✅ ${count} reservation(s) expired`);
@@ -103,7 +103,7 @@ const initCronjobs = () => {
   console.log("   • Due reminders   → daily at 9:00");
   console.log("   • Admin report    → daily at 10:10");
   console.log("   • Reader Score    → every Sunday at 12:10");
-  console.log("   • Reservations    → hourly");
+  console.log("   • Reservations    → every 6 hours");
 };
 
 module.exports = { initCronjobs };

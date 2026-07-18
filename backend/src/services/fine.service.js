@@ -1,6 +1,10 @@
 const prisma = require("../config/database");
 
-const { sendOverdueEmail, sleep } = require("./email.service");
+const {
+  sendOverdueEmail,
+  sendAdminOverdueReport,
+  sleep,
+} = require("./email.service");
 const { createNotification } = require("./notification.service");
 const FINE_RATE = parseFloat(process.env.FINE_RATE_STANDARD || "5");
 const FINE_CAP = parseFloat(process.env.FINE_CAP || "200");
@@ -229,7 +233,50 @@ const sendDueReminders = async () => {
   return { sent };
 };
 
+/**
+ * Generate + send the admin overdue report to all active admins
+ */
+
+const runAdminOverdueReport = async () => {
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN", isActive: true },
+    select: { email: true },
+  });
+
+  const overdueLoans = await prisma.loan.findMany({
+    where: { status: "OVERDUE" },
+    include: {
+      student: { select: { name: true, email: true } },
+      book: { select: { title: true, author: true } },
+      fines: { where: { paidAt: null } },
+    },
+  });
+
+  const totalFines = overdueLoans.reduce(
+    (sum, loan) => sum + loan.fines.reduce((s, f) => s + f.amount, 0),
+    0,
+  );
+
+  for (const admin of admins) {
+    await sendAdminOverdueReport({
+      adminEmail: admin.email,
+      overdueLoans,
+      totalFines,
+    }).catch((err) =>
+      console.warn(`Admin report email failed: ${err.message}`),
+    );
+    await sleep(2000);
+  }
+
+  return {
+    adminsNotified: admins.length,
+    overdueCount: overdueLoans.length,
+    totalFines,
+  };
+};
+
 module.exports = {
   runFineAccrual,
   sendDueReminders,
+  runAdminOverdueReport,
 };

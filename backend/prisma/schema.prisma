@@ -110,6 +110,7 @@ model User {
   readingGoal    ReadingGoal?    // ✅ NEW — Phase 6
   achievements   Achievement[]   // ✅ NEW — Phase 6
 
+  @@index([role, isActive])
   @@map("users")
 }
 
@@ -134,6 +135,7 @@ model Book {
   loans        Loan[]
   reservations Reservation[]
 
+  @@index([genre])
   @@map("books")
 }
 
@@ -153,9 +155,9 @@ model Loan {
   fines      Fine[]
   extensions LoanExtension[] // ✅ NEW — Phase 6
 
-  @@index([studentId])
-  @@index([bookId])
-  @@index([status])
+  @@index([studentId, issuedAt])
+  @@index([status, dueDate])
+  @@index([bookId, status])
   @@map("loans")
 }
 
@@ -175,8 +177,11 @@ model Fine {
   loan    Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@index([studentId])
   @@index([loanId])
+  @@index([studentId, paidAt, waivedBy])
+  @@index([studentId, createdAt])
+  @@index([createdAt])
+  @@index([paidAt])
   @@map("fines")
 }
 
@@ -193,9 +198,10 @@ model Reservation {
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
   book    Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
-  @@index([studentId])
-  @@index([bookId])
-  @@index([status])
+  @@index([bookId, status, reservedAt])
+  @@index([studentId, bookId, status])
+  @@index([studentId, reservedAt])
+  @@index([status, expiresAt])
   @@map("reservations")
 }
 
@@ -211,8 +217,8 @@ model Notification {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([isRead])
+  @@index([userId, isRead])
+  @@index([userId, sentAt])
   @@map("notifications")
 }
 
@@ -235,9 +241,10 @@ model Payment {
   // Relations
   student User @relation(fields: [studentId], references: [id])
 
-  @@index([studentId])
   @@index([status])
-  @@index([orderId])
+  @@index([linkId])
+  @@index([studentId, createdAt])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -257,8 +264,8 @@ model BookRequest {
   // Relations
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@index([studentId])
-  @@index([status])
+  @@index([studentId, createdAt])
+  @@index([status, createdAt])
   @@map("book_requests")
 }
 
@@ -278,8 +285,9 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
-  @@index([targetType])
   @@index([createdAt])
+  @@index([actorRole, createdAt])
+  @@index([targetType, createdAt])
   @@map("audit_logs")
 }
 
@@ -300,8 +308,8 @@ model LoanExtension {
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([loanId])
-  @@index([studentId])
-  @@index([status])
+  @@index([studentId, requestedAt])
+  @@index([status, requestedAt])
   @@map("loan_extensions")
 }
 

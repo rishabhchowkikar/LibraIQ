@@ -17,12 +17,12 @@ const analyticRoutes = require("./routes/analytics.routes");
 const auditRoutes = require("./routes/audit.routes");
 const bookRequestRoutes = require("./routes/book-request.routes");
 
-const { initCronjobs } = require("./jobs/cron");
 const { verifyEmailConnection } = require("./services/email.service");
 const { verifyRedisConnection } = require("./config/redis");
 const reservationRoutes = require("./routes/reservation.routes");
 const extensionRoutes = require("./routes/extension.routes");
 const readingStatsRoutes = require("./routes/reading-stats.routes");
+const internalRoutes = require("./routes/internal.routes");
 
 const app = express();
 
@@ -64,6 +64,7 @@ app.use("/api/book-requests", bookRequestRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/extensions", extensionRoutes);
 app.use("/api/reading-stats", readingStatsRoutes);
+app.use("/internal", internalRoutes);
 
 // health
 app.get("/health", async (req, res) => {
@@ -123,6 +124,5 @@ app.listen(PORT, async () => {
   await verifyEmailConnection();
   await verifyRedisConnection();
 
-  // initialize corn jobs
-  initCronjobs();
+  console.log("⏰ Cron jobs are triggered externally via GitHub Actions → /internal/cron/*");
 });
