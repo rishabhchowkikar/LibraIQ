@@ -23,6 +23,7 @@ const reservationRoutes = require("./routes/reservation.routes");
 const extensionRoutes = require("./routes/extension.routes");
 const readingStatsRoutes = require("./routes/reading-stats.routes");
 const internalRoutes = require("./routes/internal.routes");
+const reviewRoutes = require("./routes/review.routes");
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/api/reservations", reservationRoutes);
 app.use("/api/extensions", extensionRoutes);
 app.use("/api/reading-stats", readingStatsRoutes);
 app.use("/internal", internalRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // health
 app.get("/health", async (req, res) => {

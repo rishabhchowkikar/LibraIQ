@@ -4,7 +4,7 @@ const { createLog } = require("../services/audit.service");
 // get all books
 exports.getAllBooks = async (req, res, next) => {
   try {
-    const { search, genre, available } = req.query;
+    const { search, genre, available, sort } = req.query;
     const where = {};
 
     if (search) {
@@ -23,9 +23,15 @@ exports.getAllBooks = async (req, res, next) => {
       where.availableCopies = { gt: 0 };
     }
 
+    const sortMap = {
+      newest: { createdAt: "desc" },
+      rating: { avgRating: "desc" },
+      title: { title: "asc" },
+    };
+
     const books = await prisma.book.findMany({
       where,
-      orderBy: { title: "asc" },
+      orderBy: sortMap[sort] || sortMap.title,
     });
 
     res.status(200).json({
@@ -47,19 +53,20 @@ exports.getAllBooks = async (req, res, next) => {
 exports.getBook = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const isAdmin = req.user.role === "ADMIN";
+
     const book = await prisma.book.findUnique({
       where: { id },
       include: {
         loans: {
           where: { status: "ACTIVE" },
-          include: {
-            student: {
-              select: {
-                email: true,
-                name: true,
-              },
-            },
-          },
+          select: isAdmin
+            ? {
+                id: true,
+                dueDate: true,
+                student: { select: { id: true, name: true, email: true } },
+              }
+            : { id: true, dueDate: true },
         },
       },
     });

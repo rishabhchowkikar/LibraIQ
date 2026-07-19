@@ -19,15 +19,17 @@ import {
 import {
     LayoutDashboard, BookMarked,
     LogOut, ChevronUp, Award, Receipt, Bell,
-    CreditCard, TrendingUp, Clock, CalendarClock, Trophy
+    CreditCard, TrendingUp, Clock, CalendarClock, Trophy, Library, Users
 } from 'lucide-react';
 
 const navigation = [
     { title: 'Dashboard', url: '/student/dashboard', icon: LayoutDashboard },
+    { title: 'Browse Books', url: '/student/books', icon: Library },
     { title: 'My Loans', url: '/student/loans', icon: BookMarked },
     { title: 'Reservations', url: '/student/reservations', icon: Clock },
     { title: 'Extensions', url: '/student/extensions', icon: CalendarClock },
     { title: 'Reading Stats', url: '/student/reading-stats', icon: Trophy },
+    { title: 'Leaderboard', url: '/student/leaderboard', icon: Users },
     { title: 'My Fines', url: '/student/fines', icon: Receipt },
     { title: 'My Score', url: '/student/score', icon: TrendingUp },
     { title: "Payments", url: '/student/payments', icon: CreditCard },

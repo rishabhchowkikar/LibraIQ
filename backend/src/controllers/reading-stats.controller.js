@@ -3,6 +3,7 @@ const {
   checkAchievements,
   getOrCreateGoal,
   updateGoal,
+  getLeaderboard,
   ACHIEVEMENTS,
 } = require("../services/reading-stats.service");
 
@@ -13,12 +14,16 @@ exports.getStats = async (req, res) => {
   try {
     const studentId = req.user.userId;
 
-    const [stats, goal, achievements] = await Promise.all([
+    const [stats, goal, achievements, user] = await Promise.all([
       getReadingStats(studentId),
       getOrCreateGoal(studentId),
       prisma.achievement.findMany({
         where: { studentId },
         orderBy: { earnedAt: "desc" },
+      }),
+      prisma.user.findUnique({
+        where: { id: studentId },
+        select: { showOnLeaderboard: true },
       }),
     ]);
 
@@ -57,6 +62,7 @@ exports.getStats = async (req, res) => {
       },
       achievements: enrichedAchievements,
       newAchievements,
+      showOnLeaderboard: user.showOnLeaderboard,
     });
   } catch (error) {
     console.error("Reading stats error:", error);
@@ -112,5 +118,37 @@ exports.getAchievements = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to fetch achievements" });
+  }
+};
+
+// GET /api/reading-stats/leaderboard (Student)
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const leaderboard = await getLeaderboard();
+    res.json({ success: true, leaderboard });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch leaderboard" });
+  }
+};
+
+// PATCH /api/reading-stats/leaderboard-visibility (Student)
+exports.updateLeaderboardVisibility = async (req, res) => {
+  try {
+    const studentId = req.user.userId;
+    const { showOnLeaderboard } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id: studentId },
+      data: { showOnLeaderboard: !!showOnLeaderboard },
+      select: { showOnLeaderboard: true },
+    });
+
+    res.json({ success: true, showOnLeaderboard: user.showOnLeaderboard });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to update leaderboard visibility" });
   }
 };

@@ -22,5 +22,17 @@ readingStatsRouter.get(
   requireRole("STUDENT"),
   readingStatsController.getAchievements,
 );
+readingStatsRouter.get(
+  "/leaderboard",
+  authenticate,
+  requireRole("STUDENT"),
+  readingStatsController.getLeaderboard,
+);
+readingStatsRouter.patch(
+  "/leaderboard-visibility",
+  authenticate,
+  requireRole("STUDENT"),
+  readingStatsController.updateLeaderboardVisibility,
+);
 
 module.exports = readingStatsRouter;

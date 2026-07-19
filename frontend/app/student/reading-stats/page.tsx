@@ -9,7 +9,7 @@ import {
     PieChart, Pie, Cell,
 } from 'recharts';
 import {
-    Trophy, BookOpen, Flame, CheckCircle2, Target, Pencil, Lock,
+    Trophy, BookOpen, Flame, CheckCircle2, Target, Pencil, Lock, Users,
 } from 'lucide-react';
 
 const ACHIEVEMENTS_META: Record<string, { label: string; desc: string; emoji: string }> = {
@@ -37,6 +37,9 @@ export default function StudentReadingStatsPage() {
     const [yearlyGoalInput, setYearlyGoalInput] = useState(12);
     const [savingGoal, setSavingGoal] = useState(false);
 
+    const [showOnLeaderboard, setShowOnLeaderboard] = useState(false);
+    const [savingVisibility, setSavingVisibility] = useState(false);
+
     const fetchStats = useCallback(async () => {
         try {
             const { data } = await api.get('/reading-stats');
@@ -46,6 +49,7 @@ export default function StudentReadingStatsPage() {
                 setAchievements(data.achievements);
                 setMonthlyGoalInput(data.goal.monthlyGoal);
                 setYearlyGoalInput(data.goal.yearlyGoal);
+                setShowOnLeaderboard(data.showOnLeaderboard);
 
                 (data.newAchievements || []).forEach((type: string) => {
                     const meta = ACHIEVEMENTS_META[type];
@@ -60,6 +64,19 @@ export default function StudentReadingStatsPage() {
     }, []);
 
     useEffect(() => { fetchStats(); }, [fetchStats]);
+
+    const handleToggleLeaderboard = async (checked: boolean) => {
+        setSavingVisibility(true);
+        try {
+            await api.patch('/reading-stats/leaderboard-visibility', { showOnLeaderboard: checked });
+            setShowOnLeaderboard(checked);
+            toast.success(checked ? 'You\'re now visible on the leaderboard' : 'Removed from the leaderboard');
+        } catch {
+            toast.error('Failed to update leaderboard visibility');
+        } finally {
+            setSavingVisibility(false);
+        }
+    };
 
     const handleSaveGoal = async () => {
         if (monthlyGoalInput < 1 || yearlyGoalInput < 1) {
@@ -218,6 +235,32 @@ export default function StudentReadingStatsPage() {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Leaderboard opt-in */}
+            <div className="bg-card rounded-lg border border-border p-6 mb-8 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center shrink-0">
+                        <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-foreground text-sm">Show me on the Leaderboard</p>
+                        <p className="text-xs text-muted-foreground">Opt in to compare your reading stats with other students</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => handleToggleLeaderboard(!showOnLeaderboard)}
+                    disabled={savingVisibility}
+                    role="switch"
+                    aria-checked={showOnLeaderboard}
+                    className={`relative w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${showOnLeaderboard ? 'bg-primary' : 'bg-muted'
+                        }`}
+                >
+                    <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${showOnLeaderboard ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                    />
+                </button>
             </div>
 
             {/* Charts */}

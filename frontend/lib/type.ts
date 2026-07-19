@@ -11,6 +11,8 @@ export interface Book {
     language: string;
     publisher?: string;
     year?: number;
+    avgRating: number;
+    reviewCount: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -143,6 +145,29 @@ export interface ReadingStats {
     monthlyStats: { month: string; books: number }[];
     earlyReturns: number;
     onTimeRate: number;
+}
+
+export interface Review {
+    id: string;
+    studentId: string;
+    bookId: string;
+    rating: number;
+    comment?: string;
+    createdAt: string;
+    updatedAt: string;
+    student?: {
+        name: string;
+    };
+    book?: Book;
+}
+
+export interface LeaderboardEntry {
+    id: string;
+    name: string;
+    trustTier: string;
+    booksThisYear: number;
+    readingStreak: number;
+    rank: number;
 }
 
 export interface AuditLog {

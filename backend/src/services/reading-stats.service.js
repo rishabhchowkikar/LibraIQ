@@ -226,10 +226,40 @@ const updateGoal = async (studentId, { monthlyGoal, yearlyGoal }) => {
   });
 };
 
+// Leaderboard of opted-in students, ranked by books-this-year (tiebreak: streak)
+const getLeaderboard = async () => {
+  const optedIn = await prisma.user.findMany({
+    where: { role: "STUDENT", isActive: true, showOnLeaderboard: true },
+    select: { id: true, name: true, trustTier: true },
+  });
+
+  const withStats = await Promise.all(
+    optedIn.map(async (student) => {
+      const stats = await getReadingStats(student.id);
+      return {
+        id: student.id,
+        name: student.name,
+        trustTier: student.trustTier,
+        booksThisYear: stats.booksThisYear,
+        readingStreak: stats.readingStreak,
+      };
+    }),
+  );
+
+  withStats.sort((a, b) =>
+    b.booksThisYear !== a.booksThisYear
+      ? b.booksThisYear - a.booksThisYear
+      : b.readingStreak - a.readingStreak,
+  );
+
+  return withStats.map((entry, index) => ({ ...entry, rank: index + 1 }));
+};
+
 module.exports = {
   getReadingStats,
   checkAchievements,
   getOrCreateGoal,
   updateGoal,
+  getLeaderboard,
   ACHIEVEMENTS,
 };

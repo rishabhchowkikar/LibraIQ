@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import api from '@/lib/api';
-import { Book } from '@/lib/type';
+import { Book, Review } from '@/lib/type';
+import { StarRating } from '@/components/shared/StarRating';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +29,7 @@ import {
 import {
     Library, Plus, Search, Edit2, Trash2,
     BookOpen, Save, Hash,
-    BookCopy, BookCheck,
+    BookCopy, BookCheck, MessageSquare, User as UserIcon,
 } from 'lucide-react';
 import { BooksTableSkeleton } from '@/components/shared/DashboardSkeleton';
 
@@ -49,6 +50,11 @@ export default function AdminBooksPage() {
     const [editingBook, setEditingBook] = useState<Book | null>(null);
     const [formData, setFormData] = useState(emptyForm);
     const [submitting, setSubmitting] = useState(false);
+
+    const [reviewsOpen, setReviewsOpen] = useState(false);
+    const [reviewsTarget, setReviewsTarget] = useState<Book | null>(null);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
 
     const fetchBooks = useCallback(async () => {
         try {
@@ -153,6 +159,31 @@ export default function AdminBooksPage() {
         });
     };
 
+    const openReviews = async (book: Book) => {
+        setReviewsTarget(book);
+        setReviewsOpen(true);
+        setReviewsLoading(true);
+        try {
+            const { data } = await api.get(`/reviews/${book.id}`, { params: { limit: 50 } });
+            if (data.success) setReviews(data.reviews);
+        } catch {
+            toast.error('Failed to load reviews');
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    const handleDeleteReview = async (reviewId: string) => {
+        try {
+            await api.delete(`/reviews/${reviewId}`);
+            setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+            await fetchBooks();
+            toast.success('Review removed');
+        } catch {
+            toast.error('Failed to remove review');
+        }
+    };
+
     const stats = [
         { label: 'Total Titles', value: books.length, icon: Hash, color: 'text-blue-600', bg: 'bg-blue-50', iconColor: 'text-blue-500' },
         { label: 'Total Copies', value: books.reduce((s, b) => s + b.totalCopies, 0), icon: BookCopy, color: 'text-violet-600', bg: 'bg-violet-50', iconColor: 'text-violet-500' },
@@ -235,6 +266,7 @@ export default function AdminBooksPage() {
                                 <TableHead className="text-center font-semibold text-xs uppercase tracking-wide">Total Copies</TableHead>
                                 <TableHead className="text-center font-semibold text-xs uppercase tracking-wide">Available</TableHead>
                                 <TableHead className="font-semibold text-xs uppercase tracking-wide">Year</TableHead>
+                                <TableHead className="font-semibold text-xs uppercase tracking-wide">Rating</TableHead>
                                 <TableHead className="text-right font-semibold text-xs uppercase tracking-wide">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -275,6 +307,19 @@ export default function AdminBooksPage() {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm tabular-nums">
                                         {book.year || '—'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {book.reviewCount > 0 ? (
+                                            <button
+                                                onClick={() => openReviews(book)}
+                                                className="flex items-center gap-1.5 hover:underline cursor-pointer"
+                                            >
+                                                <StarRating value={book.avgRating} readOnly size={13} />
+                                                <span className="text-xs text-muted-foreground">({book.reviewCount})</span>
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">No reviews</span>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -467,6 +512,56 @@ export default function AdminBooksPage() {
                                 </>
                             )}
                         </Button>
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            {/* ── Reviews (moderation) Sheet ─────────────────── */}
+            <Sheet open={reviewsOpen} onOpenChange={setReviewsOpen}>
+                <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0 overflow-hidden">
+                    <SheetHeader className="px-6 py-5 border-b border-border/60 shrink-0">
+                        <SheetTitle className="text-base flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" /> Reviews
+                        </SheetTitle>
+                        <SheetDescription className="text-xs mt-0.5">
+                            {reviewsTarget?.title}
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                        {reviewsLoading ? (
+                            <div className="space-y-3">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="h-16 bg-muted rounded-md animate-pulse" />
+                                ))}
+                            </div>
+                        ) : reviews.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">No reviews for this book yet</p>
+                        ) : (
+                            reviews.map((r) => (
+                                <div key={r.id} className="border-b border-border/60 last:border-0 pb-4 last:pb-0">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="flex items-center gap-1.5 text-sm font-medium">
+                                            <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                            {r.student?.name || 'Unknown'}
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteReview(r.id)}
+                                            className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                    <StarRating value={r.rating} readOnly size={14} />
+                                    {r.comment && <p className="text-sm text-muted-foreground mt-2">{r.comment}</p>}
+                                    <p className="text-[11px] text-muted-foreground/60 mt-1">
+                                        {new Date(r.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </SheetContent>
             </Sheet>

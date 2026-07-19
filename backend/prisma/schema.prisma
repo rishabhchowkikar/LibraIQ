@@ -91,12 +91,13 @@ model User {
   id        String    @id @default(uuid())
   name      String
   email     String    @unique
-  password  String
-  role      Role      @default(STUDENT)
-  isActive  Boolean   @default(true)
-  trustTier TrustTier @default(BRONZE)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  password          String
+  role              Role      @default(STUDENT)
+  isActive          Boolean   @default(true)
+  trustTier         TrustTier @default(BRONZE)
+  showOnLeaderboard Boolean   @default(false) // ✅ NEW — Phase 7
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
   loans          Loan[]
@@ -109,6 +110,7 @@ model User {
   loanExtensions LoanExtension[] // ✅ NEW — Phase 6
   readingGoal    ReadingGoal?    // ✅ NEW — Phase 6
   achievements   Achievement[]   // ✅ NEW — Phase 6
+  reviews        Review[]        // ✅ NEW — Phase 7
 
   @@index([role, isActive])
   @@map("users")
@@ -128,12 +130,15 @@ model Book {
   publisher       String?
   year            Int?
   price           Float?
+  avgRating       Float    @default(0) // ✅ NEW — Phase 7
+  reviewCount     Int      @default(0) // ✅ NEW — Phase 7
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Relations
   loans        Loan[]
   reservations Reservation[]
+  reviews      Review[] // ✅ NEW — Phase 7
 
   @@index([genre])
   @@map("books")
@@ -341,4 +346,23 @@ model Achievement {
   @@unique([studentId, type])
   @@index([studentId])
   @@map("achievements")
+}
+
+// ✅ NEW — Phase 7: Book Reviews & Ratings
+model Review {
+  id        String   @id @default(uuid())
+  studentId String
+  bookId    String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  book    Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, bookId])
+  @@index([bookId, createdAt])
+  @@map("reviews")
 }
