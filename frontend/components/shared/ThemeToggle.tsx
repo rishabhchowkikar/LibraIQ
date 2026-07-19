@@ -23,8 +23,17 @@ export function ThemeToggle() {
 
     const handleToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
         const nextTheme = isDark ? 'light' : 'dark';
-        const x = e.clientX;
-        const y = e.clientY;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+
+        // Position expressed as a % of the viewport, not raw px — clip-path on
+        // ::view-transition-new(root) doesn't reliably line up with
+        // getBoundingClientRect()/clientX/Y in px once browser zoom isn't 100%,
+        // but percentages resolve against the pseudo-element's own box, so they
+        // stay correct at any zoom level or screen size.
+        const xPercent = (x / window.innerWidth) * 100;
+        const yPercent = (y / window.innerHeight) * 100;
 
         const doc = document as VTDoc;
 
@@ -33,10 +42,8 @@ export function ThemeToggle() {
             return;
         }
 
-        const endRadius = Math.hypot(
-            Math.max(x, window.innerWidth - x),
-            Math.max(y, window.innerHeight - y)
-        );
+        // Full diagonal — generously covers the farthest corner from any origin.
+        const endRadius = Math.hypot(window.innerWidth, window.innerHeight);
 
         const transition = doc.startViewTransition(() => {
             setTheme(nextTheme);
@@ -46,8 +53,8 @@ export function ThemeToggle() {
             document.documentElement.animate(
                 {
                     clipPath: [
-                        `circle(0px at ${x}px ${y}px)`,
-                        `circle(${endRadius}px at ${x}px ${y}px)`,
+                        `circle(0px at ${xPercent}% ${yPercent}%)`,
+                        `circle(${endRadius}px at ${xPercent}% ${yPercent}%)`,
                     ],
                 },
                 {
